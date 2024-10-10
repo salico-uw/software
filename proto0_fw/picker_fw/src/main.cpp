@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <SimpleFOC.h>
 #include <rotary.h>
+#include <U8g2lib.h>
+#include "display.h"
+#include "util.h"
 // #include <Adafruit_GFX.h>
 // #include <Adafruit_SSD1306.h>
 
@@ -73,12 +76,6 @@ Rotary encoder = Rotary(ENCODER_PIN1, ENCODER_PIN2);
 
 Commander commander = Commander(Serial);
 void onMotor(char* cmd){ commander.motor(&motor,cmd); }
-
-enum Mode_E {
-  OFF_MODE,
-  SPEED_MODE,
-  CURRENT_MODE,
-};
 
 Mode_E menuMode = OFF_MODE;
 
@@ -201,7 +198,11 @@ void setup() {
  
   motor.initFOC();
   motor.disable();
+  dp_setup();
 }
+
+float i = 0;
+float j = 0;
 
 void loop() {
   commander.run();
@@ -240,4 +241,14 @@ void loop() {
     Serial.println(motor.current_limit);
   }
   motor.move(speed_target);
+
+  i += 6.03; // test vars
+  j += 8.13;
+
+  dp_clear();
+  dp_draw_num(i, 0); // replace variables here as needed
+  dp_draw_num(j, 1); // replace variables here as needed
+  dp_draw_mode(menuMode);
+  dp_send();
+  delay(100);
 }
