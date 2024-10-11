@@ -39,14 +39,16 @@ void dp_draw_mode(Mode_E mode) {
   String mode_char = "O";
   switch (mode) {
     case OFF_MODE:
-      mode_char = "/";
+      mode_char = "X";
       break;
-      // dp_fun();
     case SPEED_MODE:
       mode_char = "S";
       break;
     case CURRENT_MODE:
       mode_char = "C";
+      break;
+    case FAULT_MODE:
+      mode_char = "F";
       break;
   }
   u8g2.drawStr(100, DP_YPOS_0, mode_char.c_str());

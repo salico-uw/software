@@ -4,11 +4,9 @@
 #include <U8g2lib.h>
 #include "display.h"
 #include "util.h"
-// #include <Adafruit_GFX.h>
-// #include <Adafruit_SSD1306.h>
-
 /* Using STMF401RE Nucleo with IHM08M1 motor sheild,
 * AS5600 I2C angle sensor
+* SSD1306 128x32 OLED display
 * rotary encoder with pushbutton for mode control
 */
 
@@ -37,24 +35,24 @@
 #define UH PA8
 #define UL PA7
 #define VH PA9
-#define VL PB0  
+#define VL PB0
 #define WH PA10
 #define WL PB1
 
 #define STATUS_LED PC6
-#define POT_PIN PA4 // (UNUSED) onboard pot ranges 740 - 785
 #define ENCODER_PIN1 PC6
 #define ENCODER_PIN2 PC8
 #define ENCODER_BUTTON_PIN PA11
 #define SPEED_INCREMENT 1.0f // rad/s
 #define MAX_SPEED 20.0f // rad/s
 #define CURRENT_INCREMENT 0.5f // rad/s
-#define MAX_CURRENT 15.0f // rad/s
+#define MAX_CURRENT 15.0f // amps
 
+#define MONITOR_ANGLE_SPEED_LIMIT 250.0f // rad/s - set to a value that I could not trip by hand
+#define MONITOR_HIGH_CURRENT_LIMIT 8.0f // amps - may need to tune this and it's timeout
+#define MONITOR_HIGH_CURRENT_TIMEOUT 12000 // ms
 #define SUPPLY_VOLTAGE (12U)
 #define BUTTON_DEBOUNCE_MS (50U) // ms
-
-#define SCREEN_ADDRESS 0x3C /// 0x3C for 128x32
 
 #if PWM_MODE == 6
 BLDCDriver6PWM driver = BLDCDriver6PWM(UH, UL, VH, VL, WH, WL);
@@ -71,8 +69,6 @@ BLDCMotor motor = BLDCMotor(MOTOR_POLE_PAIRS, MOTOR_PHASE_RESISTANCE);
 MagneticSensorI2C angleSensor = MagneticSensorI2C(AS5600_I2C);
 
 Rotary encoder = Rotary(ENCODER_PIN1, ENCODER_PIN2);
-// static TwoWire Wire2 = TwoWire(PB3, PB10);
-// Adafruit_SSD1306 display(128, 32, &Wire2, -1);
 
 Commander commander = Commander(Serial);
 void onMotor(char* cmd){ commander.motor(&motor,cmd); }
@@ -83,7 +79,7 @@ bool prevButton = true; // active low
 uint32_t last_millis = 0U;
 bool wasButtonPressed(){
   bool pressed = false;
-  // handle overflow case (should never happen unless button unpressed for 50 days) for uint subtraction
+  // handle overflow case
   if (millis() < last_millis)
   {
     last_millis = millis();
@@ -146,12 +142,45 @@ void check_encoder() {
   } else if (*target < lower_limit) {
     *target = lower_limit;
   }
+}
 
+// Returns true if tripped
+uint32_t high_current_count = 0U;
+uint32_t last_current_millis = 0U;
+void motorMonitor() {
+  if(menuMode != FAULT_MODE) {
+    // angle sensor speed monitor
+    if(fabs(angleSensor.getVelocity()) > MONITOR_ANGLE_SPEED_LIMIT) {
+      menuMode = FAULT_MODE;
+      Serial.println("Faulted due to impossible angle velocity, fix fault and power cycle");
+    }
+
+    // motor high current monitor, check every 1ms
+    uint32_t current_millis = millis();
+    if((current_millis-last_current_millis) >= 1U)
+    {
+      if(fabs(motor.current.d + motor.current.q) >= MONITOR_HIGH_CURRENT_LIMIT) {
+        if(high_current_count < MONITOR_HIGH_CURRENT_TIMEOUT) {
+          high_current_count += 2U;
+        } else {
+          menuMode = FAULT_MODE;
+          Serial.println("Faulted due to high current timeout reached, fix fault and power cycle");
+        }
+      } else {
+        if(high_current_count > 0) {
+          high_current_count -= 1U;
+        }
+      }
+    }
+    last_current_millis = current_millis;
+  }
+  else {
+    motor.disable();
+  }
 }
 
 void setup() {
   pinMode(ENCODER_BUTTON_PIN, INPUT_PULLUP);
-  pinMode(POT_PIN, INPUT); // Pot
   pinMode(ENCODER_PIN1, INPUT_PULLUP);
   pinMode(ENCODER_PIN2, INPUT_PULLUP);
   attachInterrupt(ENCODER_PIN1, check_encoder, CHANGE);
@@ -201,12 +230,10 @@ void setup() {
   dp_setup();
 }
 
-float i = 0;
-float j = 0;
-
 void loop() {
   commander.run();
   motor.loopFOC();
+  motorMonitor();
 
   if (wasButtonPressed())
   {
@@ -227,28 +254,34 @@ void loop() {
   motor.current_limit = current_limit;
   motor.PID_velocity.limit = motor.current_limit;
 
-  if(millis() % 10 == 0) // don't print too fast
+  // don't update display too fast
+  if(millis() % 100 == 0)
   {
     Serial.print("mode: ");
     Serial.print(menuMode);
     Serial.print(" angle: ");
-    Serial.print(angleSensor.getSensorAngle());
+    Serial.print(motor.shaft_velocity);
     Serial.print(" speed: ");
     Serial.print(angleSensor.getVelocity()*motor.sensor_direction);
     Serial.print(" target speed: ");
     Serial.print(speed_target);
     Serial.print(" limit: ");
     Serial.println(motor.current_limit);
+
+    dp_clear();
+    double value = 0.0f;
+    double target = 0.0f;
+    if(menuMode == OFF_MODE || menuMode == SPEED_MODE) {
+      value = motor.shaft_velocity;
+      target = speed_target;
+    } else if(menuMode == CURRENT_MODE) {
+      value = motor.current.d + motor.current.q;
+      target = motor.current_limit;
+    }
+    dp_draw_num(value, 0);
+    dp_draw_num(target, 1);
+    dp_draw_mode(menuMode);
+    dp_send();
   }
   motor.move(speed_target);
-
-  i += 6.03; // test vars
-  j += 8.13;
-
-  dp_clear();
-  dp_draw_num(i, 0); // replace variables here as needed
-  dp_draw_num(j, 1); // replace variables here as needed
-  dp_draw_mode(menuMode);
-  dp_send();
-  delay(100);
 }
