@@ -63,7 +63,9 @@ BLDCMotor motor = BLDCMotor(MOTOR_POLE_PAIRS);
 #else
 BLDCMotor motor = BLDCMotor(MOTOR_POLE_PAIRS, MOTOR_PHASE_RESISTANCE);
 #endif // CALIBRATION_MODE
-MagneticSensorI2C angleSensor = MagneticSensorI2C(AS5600_I2C);
+
+MagneticSensorSPI angleSensor = MagneticSensorSPI(AS5047_SPI, PD2);
+SPIClass SPI_3(PC12, PC11, PC10);
 
 Commander commander = Commander(Serial);
 void onMotor(char* cmd){ commander.motor(&motor,cmd); }
@@ -138,13 +140,12 @@ void setup() {
 
   SimpleFOCDebug::enable(&Serial);
   motor.useMonitoring(Serial);
-  // 25kHz pwm default
   driver.voltage_power_supply = SUPPLY_VOLTAGE;
+  driver.pwm_frequency = 20000; // Lower pwm freq (from 25kHz default) to reduce switching loss
   driver.init();
   motor.linkDriver(&driver);
 
-  angleSensor.init();
-  Wire.setClock(100000); // needed to slow down i2c speed to stop sensor from freezing often
+  angleSensor.init(&SPI_3);
   motor.linkSensor(&angleSensor);
 
   motor.velocity_limit = 100;
@@ -152,7 +153,7 @@ void setup() {
   motor.current_limit = current_limit;
 
   motor.PID_velocity.P = 0.2;
-  motor.PID_velocity.I = 5.0;
+  motor.PID_velocity.I = 8.0;
   motor.PID_velocity.D = 0.0;
   motor.PID_velocity.output_ramp = 1000;
   motor.LPF_velocity.Tf = 0.01;
@@ -162,8 +163,8 @@ void setup() {
   motor.voltage_limit = 0.5; // Set when running initFOC for CALIBRATION ONLY to be safe
 #else
   // Determined once with initFOC calibration
-  motor.sensor_direction = Direction::CW;
-  motor.zero_electric_angle = 3.5;
+  motor.sensor_direction = Direction::CCW;
+  motor.zero_electric_angle = 3.33;
 #endif // CALIBRATION_MODE
 
   motor.KV_rating = MOTOR_KV;
@@ -171,7 +172,7 @@ void setup() {
  
   motor.initFOC();
   motor.disable();
-  dp_setup();
+  // dp_setup();
 }
 
 void loop() {
@@ -204,34 +205,36 @@ void loop() {
   motor.PID_velocity.limit = motor.current_limit;
 
 #if CALIBRATION_MODE == false
-  // don't update display too fast
-  if(millis() % 100 == 0)
+  // don't update display too fast, AFFECTS MOTOR CONTROL
+  if(millis() % 5000 == 0)
   {
     Serial.print("mode: ");
     Serial.print(menuMode);
     Serial.print(" angle: ");
     Serial.print(angleSensor.getAngle());
     Serial.print(" speed: ");
-    Serial.print(angleSensor.getVelocity()*motor.sensor_direction);
+    Serial.print(motor.shaft_velocity);
     Serial.print(" target speed: ");
     Serial.print(speed_target);
+    Serial.print(" current: ");
+    Serial.print(motor.current.d + motor.current.q);
     Serial.print(" limit: ");
     Serial.println(motor.current_limit);
 
-    dp_clear();
-    double value = 0.0f;
-    double target = 0.0f;
-    if(menuMode == OFF_MODE || menuMode == SPEED_MODE) {
-      value = angleSensor.getVelocity()*motor.sensor_direction;
-      target = speed_target;
-    } else if(menuMode == CURRENT_MODE) {
-      value = motor.current.d + motor.current.q;
-      target = motor.current_limit;
-    }
-    dp_draw_num(value, 0);
-    dp_draw_num(target, 1);
-    dp_draw_mode(menuMode);
-    dp_send();
+    // dp_clear();
+    // double value = 0.0f;
+    // double target = 0.0f;
+    // if(menuMode == OFF_MODE || menuMode == SPEED_MODE) {
+    //   value = motor.shaft_velocity;
+    //   target = speed_target;
+    // } else if(menuMode == CURRENT_MODE) {
+    //   value = motor.current.d + motor.current.q;
+    //   target = motor.current_limit;
+    // }
+    // dp_draw_num(value, 0);
+    // dp_draw_num(target, 1);
+    // dp_draw_mode(menuMode);
+    // dp_send();
   }
   #endif //CALIBRATION_MODE
   motor.move(speed_target);
