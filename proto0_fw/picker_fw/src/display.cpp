@@ -36,23 +36,23 @@ void dp_draw_num(float n, uint8_t line) {
   u8g2.drawStr(1, ypos, str.c_str());
 };
 
-void dp_draw_mode(Mode_E mode) {
-  String mode_char = "O";
-  switch (mode) {
-    case OFF_MODE:
-      mode_char = "X";
+void dp_draw_state(State_E state) {
+  String state_char = "O";
+  switch (state) {
+    case OFF_STATE:
+      state_char = "X";
       break;
-    case SPEED_MODE:
-      mode_char = "S";
+    case SPEED_STATE:
+      state_char = "S";
       break;
-    case CURRENT_MODE:
-      mode_char = "C";
+    case CURRENT_STATE:
+      state_char = "C";
       break;
-    case FAULT_MODE:
-      mode_char = "F";
+    case FAULT_STATE:
+      state_char = "F";
       break;
   }
-  u8g2.drawStr(100, DP_YPOS_0, mode_char.c_str());
+  u8g2.drawStr(100, DP_YPOS_0, state_char.c_str());
 }
 
 // hehe

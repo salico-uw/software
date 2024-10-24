@@ -1,241 +1,65 @@
 #include <Arduino.h>
+#include <STM32FreeRTOS.h>
 #include <SimpleFOC.h>
 #include <U8g2lib.h>
+
 #include "util.h"
 #include "display.h"
-#include "encoder.h"
-#include "monitors.h"
-#include <rotary.h>
+#include "stateMachine.h"
+#include "rollerMotor.h"
+#include "monitor.h"
 
 /* Using STMF401RE Nucleo with IHM08M1 motor sheild,
-* AS5600 I2C angle sensor
-* SSD1306 128x32 OLED display
-* rotary encoder with pushbutton for mode control
-*/
+ * AS5047P SPI angle sensor
+ * SSD1306 128x32 OLED I2C display
+ * rotary encoder with pushbutton for mode control
+ */
 
-#define PWM_MODE 6 // For 3pwm make sure the pwms are tied together
-#if (SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH) == true && (PWM_MODE == 6)
-#error "L6398 has low side active low"
-#endif
+void setup()
+{
+	Serial.begin(115200);
+	while (!Serial) {}
 
-#define CALIBRATION_MODE false
+	initRollerMotorTask(2);
+	initStateMachineTask(1);
+	initMonitorTask(1);
 
-// Define specific motor we are using
-#define MOTOR_AT3520
-
-#ifdef MOTOR_F80
-#define MOTOR_KV 1900U
-#define MOTOR_POLE_PAIRS 7U
-#define MOTOR_PHASE_RESISTANCE 0.15f
-#endif // MOTOR_F80
-
-#ifdef MOTOR_AT3520
-#define MOTOR_KV 880U
-#define MOTOR_POLE_PAIRS 7U
-#define MOTOR_PHASE_RESISTANCE 0.075f
-#endif // MOTOR_AT3520
-
-#define UH PA8
-#define UL PA7
-#define VH PA9
-#define VL PB0
-#define WH PA10
-#define WL PB1
-
-#define SPEED_INCREMENT 1.0f // rad/s
-#define MAX_SPEED 50.0f // rad/s
-#define CURRENT_INCREMENT 0.5f // rad/s
-#define MAX_CURRENT 20.0f // amps
-
-#define SUPPLY_VOLTAGE (12U)
-#define ENCODER_BUTTON_PIN PB12
-#define BUTTON_DEBOUNCE_MS (100U) // ms
-
-#if PWM_MODE == 6
-BLDCDriver6PWM driver = BLDCDriver6PWM(UH, UL, VH, VL, WH, WL);
-#elif PWM_MODE == 3
-BLDCDriver3PWM driver = BLDCDriver3PWM(UH, VH, WH);
-#endif // PWM_MODE
-
-#if CALIBRATION_MODE
-// Need to use voltage limit mode for calibration, if specifying phase resistance it will use current limit
-BLDCMotor motor = BLDCMotor(MOTOR_POLE_PAIRS);
-#else
-BLDCMotor motor = BLDCMotor(MOTOR_POLE_PAIRS, MOTOR_PHASE_RESISTANCE);
-#endif // CALIBRATION_MODE
-
-MagneticSensorSPI angleSensor = MagneticSensorSPI(AS5047_SPI, PD2);
-SPIClass SPI_3(PC12, PC11, PC10);
-
-Commander commander = Commander(Serial);
-void onMotor(char* cmd){ commander.motor(&motor,cmd); }
-
-Mode_E menuMode = OFF_MODE;
-
-bool prevButton = true; // active low
-uint32_t last_millis = 0U;
-bool wasButtonPressed(){
-  bool pressed = false;
-  // handle overflow case
-  if (millis() < last_millis)
-  {
-    last_millis = millis();
-  }
-  bool currButton = digitalRead(ENCODER_BUTTON_PIN);
-  if(currButton == false && prevButton == true && (millis() - last_millis) > BUTTON_DEBOUNCE_MS)
-  {
-    pressed = true;
-    last_millis = millis();
-  }
-  prevButton = currButton;
-  return pressed;
+	// dp_setup();
 }
 
-double speed_target = 0.0f; // rad/s
-double current_limit = 5.0f; // amps
-void checkEncoder() {
-  if(menuMode == SPEED_MODE || menuMode == CURRENT_MODE)
-  {
-    // Initialize as speed mode
-    double mode_increment = SPEED_INCREMENT;
-    double upper_limit = MAX_SPEED;
-    double lower_limit = -MAX_SPEED;
-    double * target = &speed_target;
-    if(menuMode == CURRENT_MODE)
-    {
-      mode_increment = CURRENT_INCREMENT;
-      upper_limit = MAX_CURRENT;
-      lower_limit = 0.0f;
-      target = &current_limit;
-    }
+void loop()
+{
+// #if CALIBRATION_MODE == false
+// 	// don't update display too fast, AFFECTS MOTOR CONTROL
+// 	if (millis() % 5000 == 0)
+// 	{
+// 		Serial.print("mode: ");
+// 		Serial.print(menuMode);
+// 		Serial.print(" angle: ");
+// 		Serial.print(angleSensor.getAngle());
+// 		Serial.print(" speed: ");
+// 		Serial.print(motor.shaft_velocity);
+// 		Serial.print(" target speed: ");
+// 		Serial.print(speed_target);
+// 		Serial.print(" current: ");
+// 		Serial.print(motor.current.d + motor.current.q);
+// 		Serial.print(" limit: ");
+// 		Serial.println(motor.current_limit);
 
-    unsigned char direction = getEncoderDirection();
-    if (direction == DIR_CW)
-    {
-      *target += mode_increment;
-    }
-    else if (direction == DIR_CCW)
-    {
-      *target -= mode_increment;
-    }
-    // Saturate speed
-    if(*target > upper_limit)
-    {
-      *target = upper_limit;
-    } else if (*target < lower_limit) {
-      *target = lower_limit;
-    }
-  }
-}
-
-void setup() {
-  pinMode(ENCODER_BUTTON_PIN, INPUT_PULLUP);
-  encoderSetup();
-  Serial.begin(115200);
-  while(!Serial) {}
-  _delay(1000);
-  Serial.println("Start");
-
-  commander.add('M',onMotor,"Motor 1");
-
-  SimpleFOCDebug::enable(&Serial);
-  motor.useMonitoring(Serial);
-  driver.voltage_power_supply = SUPPLY_VOLTAGE;
-  driver.pwm_frequency = 20000; // Lower pwm freq (from 25kHz default) to reduce switching loss
-  driver.init();
-  motor.linkDriver(&driver);
-
-  angleSensor.init(&SPI_3);
-  motor.linkSensor(&angleSensor);
-
-  motor.velocity_limit = 100;
-  motor.controller = MotionControlType::velocity;
-  motor.current_limit = current_limit;
-
-  motor.PID_velocity.P = 0.2;
-  motor.PID_velocity.I = 8.0;
-  motor.PID_velocity.D = 0.0;
-  motor.PID_velocity.output_ramp = 1000;
-  motor.LPF_velocity.Tf = 0.01;
-
-  motor.voltage_sensor_align = 0.5;
-#if CALIBRATION_MODE
-  motor.voltage_limit = 0.5; // Set when running initFOC for CALIBRATION ONLY to be safe
-#else
-  // Determined once with initFOC calibration
-  motor.sensor_direction = Direction::CCW;
-  motor.zero_electric_angle = 3.33;
-#endif // CALIBRATION_MODE
-
-  motor.KV_rating = MOTOR_KV;
-  motor.init();
- 
-  motor.initFOC();
-  motor.disable();
-  // dp_setup();
-}
-
-void loop() {
-  commander.run();
-  checkEncoder();
-  if (checkAllMonitors(&motor) == true)
-  {
-    motor.disable();
-    menuMode = FAULT_MODE;
-  }
-
-  motor.loopFOC();
-  if (wasButtonPressed())
-  {
-    switch(menuMode) {
-      case OFF_MODE:
-        menuMode = SPEED_MODE;
-        motor.enable();
-        break;
-      case SPEED_MODE:
-        menuMode = CURRENT_MODE;
-        break;
-      case CURRENT_MODE:
-        menuMode = SPEED_MODE;
-        break;
-    }
-  }
-
-  motor.current_limit = current_limit;
-  motor.PID_velocity.limit = motor.current_limit;
-
-#if CALIBRATION_MODE == false
-  // don't update display too fast, AFFECTS MOTOR CONTROL
-  if(millis() % 5000 == 0)
-  {
-    Serial.print("mode: ");
-    Serial.print(menuMode);
-    Serial.print(" angle: ");
-    Serial.print(angleSensor.getAngle());
-    Serial.print(" speed: ");
-    Serial.print(motor.shaft_velocity);
-    Serial.print(" target speed: ");
-    Serial.print(speed_target);
-    Serial.print(" current: ");
-    Serial.print(motor.current.d + motor.current.q);
-    Serial.print(" limit: ");
-    Serial.println(motor.current_limit);
-
-    // dp_clear();
-    // double value = 0.0f;
-    // double target = 0.0f;
-    // if(menuMode == OFF_MODE || menuMode == SPEED_MODE) {
-    //   value = motor.shaft_velocity;
-    //   target = speed_target;
-    // } else if(menuMode == CURRENT_MODE) {
-    //   value = motor.current.d + motor.current.q;
-    //   target = motor.current_limit;
-    // }
-    // dp_draw_num(value, 0);
-    // dp_draw_num(target, 1);
-    // dp_draw_mode(menuMode);
-    // dp_send();
-  }
-  #endif //CALIBRATION_MODE
-  motor.move(speed_target);
+// 		// dp_clear();
+// 		// double value = 0.0f;
+// 		// double target = 0.0f;
+// 		// if(menuMode == OFF_MODE || menuMode == SPEED_MODE) {
+// 		//   value = motor.shaft_velocity;
+// 		//   target = speed_target;
+// 		// } else if(menuMode == CURRENT_MODE) {
+// 		//   value = motor.current.d + motor.current.q;
+// 		//   target = motor.current_limit;
+// 		// }
+// 		// dp_draw_num(value, 0);
+// 		// dp_draw_num(target, 1);
+// 		// dp_draw_mode(menuMode);
+// 		// dp_send();
+// 	}
+// #endif // CALIBRATION_MODE
 }

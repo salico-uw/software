@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <rotary.h>
 #include "encoder.h"
 
 // Encoder center pin GND, left and right pins are pulled up
