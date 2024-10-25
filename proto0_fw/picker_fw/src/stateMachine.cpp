@@ -1,5 +1,6 @@
 #include "stateMachine.h"
 #include "monitor.h"
+#include "rollerMotor.h"
 
 #define TASK_PERIOD_MS 10U
 #define ENCODER_BUTTON_PIN PB12
@@ -19,17 +20,19 @@ typedef struct {
 
 // State functions, every state must have a run function
 State_E runOffState(void);
+void exitOffState(State_E next_state);
 State_E runSpeedState(void);
 State_E runCurrentState(void);
+void enterFaultState(State_E prev_state);
 State_E runFaultState(void);
 
 // Ensure all states get added to stateFunction
 stateFunction_t stateFunction[STATE_COUNT] =
 {
-    [OFF_STATE] = {.enterState = NULL, .runState = &runOffState, .exitState = NULL},
+    [OFF_STATE] = {.enterState = NULL, .runState = &runOffState, .exitState = exitOffState},
     [SPEED_STATE] = {.enterState = NULL, .runState = &runSpeedState, .exitState = NULL},
     [CURRENT_STATE] = {.enterState = NULL, .runState = &runCurrentState, .exitState = NULL},
-    [FAULT_STATE] = {.enterState = NULL, .runState = &runFaultState, .exitState = NULL},
+    [FAULT_STATE] = {.enterState = enterFaultState, .runState = &runFaultState, .exitState = NULL},
 };
 
 bool wasButtonPressed(){
@@ -59,6 +62,11 @@ State_E runOffState(void)
     return next;
 }
 
+void exitOffState(State_E next_state)
+{
+    setRollerMotorEnable(true);
+}
+
 State_E runSpeedState(void)
 {
     State_E next = SPEED_STATE;
@@ -85,6 +93,11 @@ State_E runCurrentState(void)
         next = SPEED_STATE;
     }
     return next;
+}
+
+void enterFaultState(State_E prev_state)
+{
+    setRollerMotorEnable(false);
 }
 
 State_E runFaultState(void)

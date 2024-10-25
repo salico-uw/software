@@ -3,14 +3,12 @@
 #include "encoder.h"
 #include "monitor.h"
 
-#define TASK_PERIOD_MS 1U
+#define TASK_PERIOD_MS 2U
 
 #define PWM_MODE 6 // For 3pwm make sure the pwms are tied together
 #if (SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH) == true && (PWM_MODE == 6)
 #error "L6398 has low side active low"
 #endif
-
-#define CALIBRATION_MODE false
 
 // Define specific motor we are using
 #define MOTOR_AT3520
@@ -61,7 +59,7 @@ Commander commander = Commander(Serial);
 void onMotor(char* cmd){ commander.motor(&motor,cmd); }
 
 double speed_target = 0.0f; // rad/s
-double current_limit = 5.0f; // amps
+double current_limit = 3.0f; // amps
 void checkEncoder() {
   State_E state = getState();
   if(state == SPEED_STATE || state == CURRENT_STATE)
@@ -146,23 +144,6 @@ static void TaskRollerMotor(void *pvParameters)
     // Loop
     while (1)
     {
-        switch(getState())
-        {
-            case SPEED_STATE:
-            case CURRENT_STATE:
-            {
-                motor.enable();
-                break;
-            }
-            case OFF_STATE:
-            case FAULT_STATE:
-            default:
-            {
-                motor.disable();
-                break;
-            }
-        }
-
         commander.run();
         checkEncoder();
         motor.current_limit = current_limit;
@@ -188,27 +169,44 @@ void initRollerMotorTask(UBaseType_t priority)
     ,  NULL );
 }
 
-BLDCMotor const * const getRollerMotor(void)
+void setRollerMotorEnable(bool enable)
 {
-    return &motor;
+	if(enable)
+	{
+		motor.enable();
+	}
+	else
+	{
+		motor.disable();
+	}
 }
 
-int16_t getRollerMotorSpeed(void)
+bool getRollerMotorEnabled(void)
+{
+    return motor.enabled;
+}
+
+float getRollerMotorAngle(void)
+{
+    return angleSensor.getAngle();
+}
+
+float getRollerMotorSpeed(void)
 {
     return motor.shaft_velocity;
 }
 
-int16_t getRollerMotorSpeedTarget(void)
+float getRollerMotorSpeedTarget(void)
 {
     return speed_target;
 }
 
-int16_t getRollerMotorCurrent(void)
+float getRollerMotorCurrent(void)
 {
     return motor.current.d + motor.current.q;
 }
 
-int16_t getRollerMotorCurrentLimit(void)
+float getRollerMotorCurrentLimit(void)
 {
     return current_limit;
 }

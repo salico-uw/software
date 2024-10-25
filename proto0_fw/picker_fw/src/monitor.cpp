@@ -2,7 +2,7 @@
 #include "monitor.h"
 #include "rollerMotor.h"
 
-#define TASK_PERIOD_MS 1U
+#define TASK_PERIOD_MS 10U
 
 #define MONITOR_ANGLE_SPEED_LIMIT 250.0f // rad/s
 #define MONITOR_ANGLE_SPEED_LIMIT_COUNT 1U // cycles
@@ -15,11 +15,11 @@ uint8_t angle_fault_count = 0U;
 uint16_t monitor_bits = 0U; // bitfield of monitor trips (1 is tripped)
 
 // Private functions
-bool angleMonitor(BLDCMotor const * const motor)
+bool angleMonitor(float motor_speed)
 {
     bool tripped = false;
     // angle sensor speed monitor
-    if(fabs(motor->shaft_velocity) > MONITOR_ANGLE_SPEED_LIMIT) {
+    if(fabs(motor_speed) > MONITOR_ANGLE_SPEED_LIMIT) {
         if(angle_fault_count < MONITOR_ANGLE_SPEED_LIMIT_COUNT)
         {
             angle_fault_count++;
@@ -32,16 +32,16 @@ bool angleMonitor(BLDCMotor const * const motor)
     return tripped;
 }
 
-bool motorOverloadMonitor(BLDCMotor const * const motor)
+bool motorOverloadMonitor(float motor_current)
 {
     bool tripped = false;
     // motor high current monitor, check every 1ms
     // Asymmetric counter to still trip when hovering around threshold
-    if(fabs(motor->current.d + motor->current.q) >= MONITOR_HIGH_CURRENT_LIMIT)
+    if(fabs(motor_current) >= MONITOR_HIGH_CURRENT_LIMIT)
     {
         if(high_current_count < (MONITOR_HIGH_CURRENT_TIMEOUT_MS*2U))
         {
-            high_current_count += 2U;
+            high_current_count += 2U*TASK_PERIOD_MS;
         }
         else
         {
@@ -53,7 +53,7 @@ bool motorOverloadMonitor(BLDCMotor const * const motor)
     {
         if(high_current_count > 0)
         {
-            high_current_count -= 1U;
+            high_current_count -= 1U*TASK_PERIOD_MS;
         }
     }
     return tripped;
@@ -65,14 +65,14 @@ static void TaskMonitor(void *pvParameters)
 
     const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
     // Setup
-    BLDCMotor const * const rollerMotor = getRollerMotor();
+
     // Loop
     while (1)
     {
-        if(rollerMotor->enabled)
+        if(getRollerMotorEnabled())
         {
-            monitor_bits |= angleMonitor(rollerMotor) << 0U;
-            monitor_bits |= motorOverloadMonitor(rollerMotor) << 1U;
+            monitor_bits |= angleMonitor(getRollerMotorSpeed()) << 0U;
+            monitor_bits |= motorOverloadMonitor(getRollerMotorCurrent()) << 1U;
         }
 
         vTaskDelay(xDelay);
