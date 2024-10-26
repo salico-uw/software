@@ -2,6 +2,8 @@
 #include <STM32FreeRTOS.h>
 #include "led.h"
 
+#define TASK_PERIOD_MS 500U
+
 // Private functions
 static void TaskBlink(void *pvParameters)
 {
