@@ -9,6 +9,7 @@
 #include "rollerMotor.h"
 #include "monitor.h"
 #include "logger.h"
+#include "led.h"
 
 /* Using STMF401RE Nucleo with IHM08M1 motor sheild,
  * AS5047P SPI angle sensor
@@ -28,6 +29,7 @@ void setup()
 	initRollerMotorTask(3);
 	initStateMachineTask(2);
 	initMonitorTask(2);
+	initLedTask(4);
 
 	Serial.println("Start RTOS");
 	
