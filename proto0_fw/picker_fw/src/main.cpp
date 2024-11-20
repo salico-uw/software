@@ -34,7 +34,6 @@ void setup()
 	// Start RTOS
 	vTaskStartScheduler();
 	while(1);
-	// dp_setup();
 }
 
 void loop()
