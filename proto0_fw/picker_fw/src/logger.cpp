@@ -5,7 +5,7 @@
 #include "logger.h"
 #include "display.h"
 
-#define TASK_PERIOD_MS 1000U
+#define TASK_PERIOD_MS 1500U
 
 static void TaskLogger(void *pvParameters)
 {
@@ -60,7 +60,7 @@ void initLoggerTask(UBaseType_t priority)
     xTaskCreate(
     TaskLogger
     ,  (const portCHAR *)"Logger"
-    ,  128
+    ,  512
     ,  NULL
     ,  priority
     ,  NULL );

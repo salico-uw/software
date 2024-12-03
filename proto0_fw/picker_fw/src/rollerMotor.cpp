@@ -18,10 +18,10 @@
 #endif
 
 #define SPEED_INCREMENT 1.0f // rad/s
-#define MAX_SPEED 100.0f // rad/s
+#define MAX_SPEED 200.0f // rad/s
 #define CURRENT_INCREMENT 0.5f // rad/s
 #if OPEN_LOOP == false
-#define MAX_CURRENT 10.0f // amps
+#define MAX_CURRENT 15.0f // amps
 #else
 #define MAX_CURRENT 5.0f // amps
 #endif // OPEN_LOOP == false
@@ -130,6 +130,7 @@ static void TaskRollerMotor(void *pvParameters)
     driver.init();
     motor.linkDriver(&driver);
 
+    angleSensor.clock_speed = 4000000; // AS5047 SPI speed can go up to 10MHz 
     angleSensor.init(&SPI_3);
     motor.linkSensor(&angleSensor);
 
@@ -152,8 +153,8 @@ static void TaskRollerMotor(void *pvParameters)
     motor.voltage_limit = 0.5; // Set when running initFOC for CALIBRATION ONLY to be safe
     #else
     // Determined once with initFOC calibration
-    motor.sensor_direction = Direction::CCW;
-    motor.zero_electric_angle = 5.41;
+    motor.sensor_direction = Direction::CW;
+    motor.zero_electric_angle = 6.0;
     #endif // CALIBRATION_MODE
 
     motor.KV_rating = MOTOR_KV;

@@ -2,11 +2,11 @@
 #include "monitor.h"
 #include "rollerMotor.h"
 
-#define TASK_PERIOD_MS 10U
+#define TASK_PERIOD_MS 200U
 
-#define MONITOR_ANGLE_SPEED_LIMIT 250.0f // rad/s
+#define MONITOR_ANGLE_SPEED_LIMIT 300.0f // rad/s
 #define MONITOR_ANGLE_SPEED_LIMIT_COUNT 1U // cycles
-#define MONITOR_HIGH_CURRENT_LIMIT 8.0f // amps
+#define MONITOR_HIGH_CURRENT_LIMIT 15.0f // amps
 #define MONITOR_HIGH_CURRENT_TIMEOUT_MS 5000 // ms
 
 uint32_t high_current_count = 0U;
@@ -85,7 +85,7 @@ void initMonitorTask(UBaseType_t priority)
     xTaskCreate(
     TaskMonitor
     ,  (const portCHAR *)"Monitor"
-    ,  128
+    ,  256
     ,  NULL
     ,  priority
     ,  NULL );
