@@ -4,9 +4,9 @@
 #include "monitor.h"
 
 // *****Adjustable defines*****
-#define TASK_PERIOD_MS 2U
+#define TASK_PERIOD_MS 1U
 
-#define PWM_MODE 6 // For 3pwm make sure the pwms are tied together
+#define PWM_MODE 3 // For 3pwm make sure the pwms are tied together
 #if (SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH) == true && (PWM_MODE == 6)
 #error "L6398 has low side active low"
 #endif
@@ -76,7 +76,7 @@ Commander commander = Commander(Serial);
 void onMotor(char* cmd){ commander.motor(&motor,cmd); }
 
 double speed_target = 0.0f; // rad/s
-double current_limit = 3.0f; // amps
+double current_limit = 2.0f; // amps
 void checkEncoder() {
   State_E state = getState();
   if(state == SPEED_STATE || state == CURRENT_STATE)
