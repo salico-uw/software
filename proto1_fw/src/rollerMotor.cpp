@@ -2,7 +2,6 @@
 #include "stateMachine.h"
 #include "encoder.h"
 #include "monitor.h"
-#include <SPI.h>
 
 // *****Adjustable defines*****
 #define TASK_PERIOD_MS 1U
@@ -61,49 +60,6 @@
 #define WH1 PA10
 #define WH2 PB1
 
-#if USE_GD_SPI
-#define READ 0b1000000000000000
-#define WRITE 0x00
-#define FAULT_STATUS_ADDR 0x0
-#define DRIVER_CONTROL_ADDR 0x2
-#define GD_HS_ADDR 0x3
-#define GD_LOW_ADDR 0x4
-#define OCP_ADDR 0x5
-#define CSA_ADDR 0x6
-#define NCS_PIN PD2
-#define DATA_MASK 0b11111111111
-SPIClass GD_SPI(PC12, PC11, PC10);
-
-void setupSPI(void)
-{
-    pinMode(NCS_PIN, OUTPUT);
-	digitalWrite(NCS_PIN, HIGH);
-	GD_SPI.beginTransaction(SPISettings(800000, MSBFIRST, SPI_MODE_1));
-}
-
-uint16_t transmitSPI(uint16_t mosi)
-{
-	Serial.println(mosi, BIN);
-	digitalWrite(NCS_PIN, LOW);
-	uint16_t rx_buffer = GD_SPI.transfer16(mosi) & DATA_MASK;
-	digitalWrite(NCS_PIN, HIGH);
-	Serial.println(rx_buffer, BIN);
-    return rx_buffer;
-}
-
-void writeSPIRegister(uint8_t addr, uint16_t data)
-{
-    uint16_t mosi = WRITE | (addr << 11U) | data;
-    transmitSPI(mosi);
-}
-
-uint16_t readSPIRegister(uint8_t addr)
-{
-    uint16_t mosi = READ | (addr << 11U);
-    return transmitSPI(mosi);
-}
-#endif // USE_GD_SPI
-
 BLDCDriver3PWM driver1 = BLDCDriver3PWM(UH1, VH1, WH1);
 BLDCDriver3PWM driver2 = BLDCDriver3PWM(UH2, VH2, WH2);
 
@@ -117,6 +73,7 @@ BLDCMotor motor2 = BLDCMotor(MOTOR_POLE_PAIRS, MOTOR_PHASE_RESISTANCE);
 #endif // CALIBRATION_MODE
 
 HallSensor sensor1 = HallSensor(PB3, PB4, PB5, MOTOR_POLE_PAIRS);
+HallSensor sensor2 = HallSensor(PB13, PB14, PB15, MOTOR_POLE_PAIRS); // test these pins
 
 Commander commander = Commander(Serial);
 void onMotor1(char* cmd){ commander.motor(&motor1,cmd); }
@@ -166,46 +123,6 @@ static void TaskRollerMotor(void *pvParameters)
 
     const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
     // Setup
-#if USE_GD_SPI
-    setupSPI();
-
-	Serial.println("START");
-    if(readSPIRegister(FAULT_STATUS_ADDR) != 0U)
-    {
-        Serial.println("FAULTED");
-        while(1) {}
-    }    
-
-	Serial.println("driver control read");
-    readSPIRegister(DRIVER_CONTROL_ADDR);
-
-	Serial.println("driver control write 3pwm");
-    uint16_t pwm3_data = (0b01<<5U);
-    writeSPIRegister(DRIVER_CONTROL_ADDR, pwm3_data);
-
-	Serial.println("driver control read");
-    uint16_t spi_driver_config = readSPIRegister(DRIVER_CONTROL_ADDR);
-	if(spi_driver_config != pwm3_data)
-    {
-        Serial.println("3PWM NOT CONFIGURED CORRECTLY");
-        while(1) {}
-    }
-
-	Serial.println("GD high read");
-    readSPIRegister(GD_HS_ADDR);
-
-	Serial.println("GD low read");
-    readSPIRegister(GD_LOW_ADDR);
-
-	Serial.println("OCP");
-    readSPIRegister(OCP_ADDR);
-
-	Serial.println("CSA");
-    readSPIRegister(CSA_ADDR);
-
-	GD_SPI.end();
-#endif // USE_GD_SPI
-
     encoderSetup();
 
     commander.add('M',onMotor1,"Motor 1");
@@ -232,11 +149,15 @@ static void TaskRollerMotor(void *pvParameters)
     driver2.init();
     motor2.linkDriver(&driver2);
 
+    sensor2.pullup = Pullup::USE_INTERN;
+    sensor2.init();
+    motor2.linkSensor(&sensor2);
+
     motor2.velocity_limit = 100;
 
 #if OPEN_LOOP == false
     motor1.controller = MotionControlType::velocity;
-    motor2.controller = MotionControlType::velocity_openloop;
+    motor2.controller = MotionControlType::velocity;
 #else
 	motor1.controller = MotionControlType::velocity_openloop;
     motor2.controller = MotionControlType::velocity_openloop;

@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "monitor.h"
 #include "rollerMotor.h"
+#include "gateDriverSPI.h"
 
 #define TASK_PERIOD_MS 200U
 
@@ -26,7 +27,7 @@ bool angleMonitor(float motor_speed)
         }
         else {
             tripped = true;
-            Serial.println("Faulted due to impossible angle velocity, fix fault and power cycle");
+            // Serial.println("Faulted due to impossible angle velocity, fix fault and power cycle");
         }
     }
     return tripped;
@@ -46,7 +47,7 @@ bool motorOverloadMonitor(float motor_current)
         else
         {
             tripped = true;
-            Serial.println("Faulted due to high current timeout reached, fix fault and power cycle");
+            // Serial.println("Faulted due to high current timeout reached, fix fault and power cycle");
         }
     }
     else
@@ -59,6 +60,11 @@ bool motorOverloadMonitor(float motor_current)
     return tripped;
 }
 
+bool gateDriverMonitor()
+{
+    return isGateDriverHealthy();
+}
+
 static void TaskMonitor(void *pvParameters)
 {
     (void) pvParameters;
@@ -69,10 +75,11 @@ static void TaskMonitor(void *pvParameters)
     // Loop
     while (1)
     {
+        monitor_bits |= gateDriverMonitor() << 0U;
         if(getRollerMotorEnabled())
         {
-            monitor_bits |= angleMonitor(getRollerMotorSpeed()) << 0U;
-            monitor_bits |= motorOverloadMonitor(getRollerMotorCurrent()) << 1U;
+            monitor_bits |= angleMonitor(getRollerMotorSpeed()) << 1U;
+            monitor_bits |= motorOverloadMonitor(getRollerMotorCurrent()) << 2U;
         }
 
         vTaskDelay(xDelay);

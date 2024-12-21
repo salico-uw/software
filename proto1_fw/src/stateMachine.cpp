@@ -55,7 +55,11 @@ bool wasButtonPressed(){
 State_E runOffState(void)
 {
     State_E next = OFF_STATE;
-    if(wasButtonPressed())
+    if(getMonitorTripped())
+    {
+        next = FAULT_STATE;
+    }
+    else if(wasButtonPressed())
     {
         next = SPEED_STATE;
     }
@@ -98,6 +102,8 @@ State_E runCurrentState(void)
 void enterFaultState(State_E prev_state)
 {
     setRollerMotorEnable(false);
+    Serial.print("FAULTED bits: ");
+    Serial.println(getMonitorTripBits(), BIN);
 }
 
 State_E runFaultState(void)
