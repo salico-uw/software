@@ -4,8 +4,9 @@
 #include "rollerMotor.h"
 #include "logger.h"
 #include "display.h"
+#include "monitor.h"
 
-#define TASK_PERIOD_MS 1000U
+#define TASK_PERIOD_MS 200U
 
 static void TaskLogger(void *pvParameters)
 {
@@ -18,24 +19,25 @@ static void TaskLogger(void *pvParameters)
     // Loop
     while (1)
     {
-		
 		State_E state = getState();
 		float motorSpeed = getRollerMotorSpeed();
 		float speedTarget = getRollerMotorSpeedTarget();
 		float motorCurrent = getRollerMotorCurrent();
 		float currentLimit = getRollerMotorCurrentLimit();
-		Serial.print("mode: ");
+		Serial.print("S: "); // state
 		Serial.print(state);
-		Serial.print(" angle: ");
+		Serial.print(" A: "); // motor angle
 		Serial.print(getRollerMotorAngle());
-		Serial.print(" speed: ");
+		Serial.print(" W: "); // motor speed (rad/s)
 		Serial.print(motorSpeed);
-		Serial.print(" target speed: ");
+		Serial.print(" TW: "); // target speed
 		Serial.print(speedTarget);
-		Serial.print(" current: ");
+		Serial.print(" C: "); // motor current (A)
 		Serial.print(motorCurrent);
-		Serial.print(" limit: ");
-		Serial.println(currentLimit);
+		Serial.print(" CL: "); // current limit
+		Serial.print(currentLimit);
+		Serial.print(" FB: "); // fault bits
+		Serial.println(getMonitorTripBits(), BIN);
 		// Serial.print("Hall A: ");
 		// Serial.print(analogRead(PB3));
 		// Serial.print("B: ");

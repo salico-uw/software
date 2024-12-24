@@ -4,7 +4,7 @@
 
 #define TASK_PERIOD_MS 200U
 #define ENCODER_BUTTON_PIN PB12
-#define BUTTON_DEBOUNCE_MS (100U) // ms
+#define BUTTON_DEBOUNCE_MS (200U) // ms
 
 State_E state = OFF_STATE;
 State_E next_state = OFF_STATE;

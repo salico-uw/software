@@ -6,6 +6,7 @@
 // *****Adjustable defines*****
 #define TASK_PERIOD_MS 1U
 
+#define DUAL_MOTOR false // BOTH MOTORS MUST BE THE SAME
 #define PWM_MODE 3 // For 3pwm make sure the pwms are tied together
 #if (SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH) == true && (PWM_MODE == 6)
 #error "L6398 has low side active low"
@@ -73,7 +74,7 @@ BLDCMotor motor2 = BLDCMotor(MOTOR_POLE_PAIRS, MOTOR_PHASE_RESISTANCE);
 #endif // CALIBRATION_MODE
 
 HallSensor sensor1 = HallSensor(PB3, PB4, PB5, MOTOR_POLE_PAIRS);
-HallSensor sensor2 = HallSensor(PB13, PB14, PB15, MOTOR_POLE_PAIRS); // test these pins
+HallSensor sensor2 = HallSensor(PB13, PB14, PB15, MOTOR_POLE_PAIRS);
 
 Commander commander = Commander(Serial);
 void onMotor1(char* cmd){ commander.motor(&motor1,cmd); }
@@ -142,10 +143,11 @@ static void TaskRollerMotor(void *pvParameters)
 
     motor1.velocity_limit = 100;
 
+#if DUAL_MOTOR
     // Motor 2
     motor2.useMonitoring(Serial);
     driver2.voltage_power_supply = SUPPLY_VOLTAGE;
-    driver2.pwm_frequency = 10000; // Lower pwm freq (from 25kHz default) to reduce switching loss
+    driver2.pwm_frequency = 15000; // Lower pwm freq (from 25kHz default) to reduce switching loss
     driver2.init();
     motor2.linkDriver(&driver2);
 
@@ -154,6 +156,7 @@ static void TaskRollerMotor(void *pvParameters)
     motor2.linkSensor(&sensor2);
 
     motor2.velocity_limit = 100;
+#endif // DUAL_MOTOR
 
 #if OPEN_LOOP == false
     motor1.controller = MotionControlType::velocity;
@@ -177,7 +180,7 @@ static void TaskRollerMotor(void *pvParameters)
     motor1.voltage_limit = 0.5; // Set when running initFOC for CALIBRATION ONLY to be safe
     #else
     // Determined once with initFOC calibration
-    motor1.sensor_direction = Direction::CCW;
+    motor1.sensor_direction = Direction::CW;
     motor1.zero_electric_angle = 3.14;
     #endif // CALIBRATION_MODE
 
@@ -187,6 +190,7 @@ static void TaskRollerMotor(void *pvParameters)
     motor1.initFOC();
     motor1.disable();
 
+#if DUAL_MOTOR
 	// Motor 2
 	motor2.current_limit = current_limit;
 
@@ -210,22 +214,25 @@ static void TaskRollerMotor(void *pvParameters)
 
     motor2.initFOC();
     motor2.disable();
+#endif // DUAL_MOTOR
 
     // Loop
     while (1)
     {
         commander.run();
         checkEncoder();
+
         motor1.current_limit = current_limit;
         motor1.PID_velocity.limit = motor1.current_limit;
+        motor1.loopFOC();
+        motor1.move(speed_target);
+
+#if DUAL_MOTOR
 		motor2.current_limit = current_limit;
         motor2.PID_velocity.limit = motor2.current_limit;
-
-        motor1.loopFOC();
 		motor2.loopFOC();
-
-        motor1.move(speed_target);
 		motor2.move(speed_target);
+#endif // DUAL_MOTOR
 
         vTaskDelay(xDelay);
     }
@@ -248,12 +255,16 @@ void setRollerMotorEnable(bool enable)
 	if(enable)
 	{
 		motor1.enable();
+#if DUAL_MOTOR
 		motor2.enable();
+#endif // DUAL_MOTOR
 	}
 	else
 	{
 		motor1.disable();
+#if DUAL_MOTOR
 		motor2.disable();
+#endif // DUAL_MOTOR
 	}
 }
 

@@ -1,6 +1,8 @@
 #include "gateDriverSPI.h"
 #include <SPI.h>
 
+#define DUAL_GD false
+
 #define TASK_PERIOD_MS 200U
 
 #define READ 0b1000000000000000
@@ -16,9 +18,9 @@
 #define PWM3_CONFIG (0b01<<5U)
 
 #define NCS_PIN1 PD2
-#define NCS_PIN2 PA13 // test this
+#define NCS_PIN2 PA15
 SPIClass GD_SPI(PC12, PC11, PC10);
-bool healthy = false;
+bool healthy = true;
 
 uint16_t transmitSPI(uint16_t mosi, uint8_t CS_PIN)
 {
@@ -46,9 +48,7 @@ void setupSPI(void)
 {
     pinMode(NCS_PIN1, OUTPUT);
 	digitalWrite(NCS_PIN1, HIGH);
-    pinMode(NCS_PIN2, OUTPUT);
-	digitalWrite(NCS_PIN2, HIGH);
-	GD_SPI.beginTransaction(SPISettings(800000, MSBFIRST, SPI_MODE1));
+	GD_SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE1));
     bool setupCorrect = true;
     setupCorrect &= readSPIRegister(FAULT_STATUS_ADDR, NCS_PIN1) == 0U;
     // Write 3PWM config to GD
@@ -56,12 +56,16 @@ void setupSPI(void)
     // Read back config value to make sure config correct
     setupCorrect &= readSPIRegister(DRIVER_CONTROL_ADDR, NCS_PIN1) == PWM3_CONFIG;
 
+#if DUAL_GD
+    pinMode(NCS_PIN2, OUTPUT);
+	digitalWrite(NCS_PIN2, HIGH);
     // Second GD board
     setupCorrect &= readSPIRegister(FAULT_STATUS_ADDR, NCS_PIN2) == 0U;
     // Write 3PWM config to GD
     writeSPIRegister(DRIVER_CONTROL_ADDR, PWM3_CONFIG, NCS_PIN2);
     // Read back config value to make sure config correct
     setupCorrect &= readSPIRegister(DRIVER_CONTROL_ADDR, NCS_PIN2) == PWM3_CONFIG;
+#endif // DUAL_GD
 
     healthy = setupCorrect;
 }
@@ -69,12 +73,21 @@ void setupSPI(void)
 bool checkGDRegisters()
 {
     bool correct = true;
-    // Check no faults
-    correct &= readSPIRegister(FAULT_STATUS_ADDR, NCS_PIN1) == 0U;
+    // Check no faults and read if 3pwm config is still correct
+    uint16_t fsa =  readSPIRegister(FAULT_STATUS_ADDR, NCS_PIN1);
+    correct &= (fsa == 0U);
+    uint16_t dca = readSPIRegister(DRIVER_CONTROL_ADDR, NCS_PIN1);
+    correct &= (dca == PWM3_CONFIG);
+    // if(!correct)
+    // {
+    //     Serial.println(fsa, BIN);
+    //     Serial.println(dca, BIN);
+    // }
+
+#if DUAL_GD
     correct &= readSPIRegister(FAULT_STATUS_ADDR, NCS_PIN2) == 0U;
-    // Check if configs are correct
-    correct &= readSPIRegister(DRIVER_CONTROL_ADDR, NCS_PIN1) == PWM3_CONFIG;
     correct &= readSPIRegister(DRIVER_CONTROL_ADDR, NCS_PIN2) == PWM3_CONFIG;
+#endif // DUAL_GD
     return correct;
 }
 

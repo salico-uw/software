@@ -9,10 +9,12 @@
 #define MONITOR_ANGLE_SPEED_LIMIT_COUNT 1U // cycles
 #define MONITOR_HIGH_CURRENT_LIMIT 15.0f // amps
 #define MONITOR_HIGH_CURRENT_TIMEOUT_MS 5000 // ms
+#define MONITOR_GD_UNHEALTHY_LIMIT 4U
 
 uint32_t high_current_count = 0U;
 uint32_t last_current_millis = 0U;
 uint8_t angle_fault_count = 0U;
+uint8_t gd_unhealthy_count = 0U;
 uint16_t monitor_bits = 0U; // bitfield of monitor trips (1 is tripped)
 
 // Private functions
@@ -50,19 +52,33 @@ bool motorOverloadMonitor(float motor_current)
             // Serial.println("Faulted due to high current timeout reached, fix fault and power cycle");
         }
     }
-    else
+    else if(high_current_count > 0U)
     {
-        if(high_current_count > 0)
-        {
-            high_current_count -= 1U*TASK_PERIOD_MS;
-        }
+        high_current_count -= 1U*TASK_PERIOD_MS;
     }
     return tripped;
 }
 
 bool gateDriverMonitor()
 {
-    return isGateDriverHealthy();
+    // Trip if GD is faulted or not configured correctly
+    bool tripped = false;
+    if(!isGateDriverHealthy())
+    {
+        if(gd_unhealthy_count < MONITOR_GD_UNHEALTHY_LIMIT)
+        {
+            gd_unhealthy_count++;
+        }
+        else
+        {
+            tripped = true;
+        }        
+    }
+    else if (gd_unhealthy_count > 0U)
+    {
+        gd_unhealthy_count--;
+    }
+    return tripped;
 }
 
 static void TaskMonitor(void *pvParameters)
