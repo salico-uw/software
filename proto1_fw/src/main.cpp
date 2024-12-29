@@ -11,6 +11,8 @@
 #include "logger.h"
 #include "gateDriverSPI.h"
 
+#define TEST_MODE true
+
 /* Using STMF401RE Nucleo with IHM08M1 motor sheild,
  * AS5047P SPI angle sensor
  * SSD1306 128x32 OLED I2C display
@@ -18,6 +20,10 @@
  */
 void setup()
 {
+#if TEST_MODE
+	Serial.begin(1000000);
+	pinMode(13, OUTPUT);
+#else
 	Serial.begin(1000000);
 	while (!Serial) {}
 	Serial.print("Init RTOS with sysclock: ");
@@ -36,9 +42,15 @@ void setup()
 	// Start RTOS
 	vTaskStartScheduler();
 	while(1);
+#endif
 }
 
 void loop()
 {
-
+	digitalWrite(13, HIGH);
+	Serial.println("HIGH");
+	delay(1000);
+	digitalWrite(13, LOW);
+	Serial.println("LOW");
+	delay(1000);
 }
