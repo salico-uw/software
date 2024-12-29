@@ -3,16 +3,34 @@
 #include "encoder.h"
 #include "monitor.h"
 
-#define TASK_PERIOD_MS 2U
+// *****Adjustable defines*****
+#define TASK_PERIOD_MS 1U
 
-#define PWM_MODE 6 // For 3pwm make sure the pwms are tied together
+#define PWM_MODE 3 // For 3pwm make sure the pwms are tied together
 #if (SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH) == true && (PWM_MODE == 6)
 #error "L6398 has low side active low"
 #endif
 
+// Toggle for open loop for testing
+#define OPEN_LOOP false // Dont set when CALIBRATION_MODE == true
+#if OPEN_LOOP && CALIBRATION_MODE
+#error "Cannot calibrate in open loop mode"
+#endif
+
+#define SPEED_INCREMENT 1.0f // rad/s
+#define MAX_SPEED 200.0f // rad/s
+#define CURRENT_INCREMENT 0.5f // rad/s
+#if OPEN_LOOP == false
+#define MAX_CURRENT 15.0f // amps
+#else
+#define MAX_CURRENT 5.0f // amps
+#endif // OPEN_LOOP == false
+
+#define SUPPLY_VOLTAGE (22U)
 // Define specific motor we are using
 #define MOTOR_AT3520
 
+// *****Rest of defines*****
 #ifdef MOTOR_F80
 #define MOTOR_KV 1900U
 #define MOTOR_POLE_PAIRS 7U
@@ -25,19 +43,18 @@
 #define MOTOR_PHASE_RESISTANCE 0.075f
 #endif // MOTOR_AT3520
 
+#ifdef MOTOR_U8
+#define MOTOR_KV 170U
+#define MOTOR_POLE_PAIRS 21U
+#define MOTOR_PHASE_RESISTANCE 0.15f
+#endif // MOTOR_U8
+
 #define UH PA8
 #define UL PA7
 #define VH PA9
 #define VL PB0
 #define WH PA10
 #define WL PB1
-
-#define SPEED_INCREMENT 1.0f // rad/s
-#define MAX_SPEED 50.0f // rad/s
-#define CURRENT_INCREMENT 0.5f // rad/s
-#define MAX_CURRENT 20.0f // amps
-
-#define SUPPLY_VOLTAGE (12U)
 
 #if PWM_MODE == 6
 BLDCDriver6PWM driver = BLDCDriver6PWM(UH, UL, VH, VL, WH, WL);
@@ -59,7 +76,7 @@ Commander commander = Commander(Serial);
 void onMotor(char* cmd){ commander.motor(&motor,cmd); }
 
 double speed_target = 0.0f; // rad/s
-double current_limit = 3.0f; // amps
+double current_limit = 2.0f; // amps
 void checkEncoder() {
   State_E state = getState();
   if(state == SPEED_STATE || state == CURRENT_STATE)
@@ -109,15 +126,20 @@ static void TaskRollerMotor(void *pvParameters)
     SimpleFOCDebug::enable(&Serial);
     motor.useMonitoring(Serial);
     driver.voltage_power_supply = SUPPLY_VOLTAGE;
-    driver.pwm_frequency = 20000; // Lower pwm freq (from 25kHz default) to reduce switching loss
+    driver.pwm_frequency = 10000; // Lower pwm freq (from 25kHz default) to reduce switching loss
     driver.init();
     motor.linkDriver(&driver);
 
+    angleSensor.clock_speed = 4000000; // AS5047 SPI speed can go up to 10MHz 
     angleSensor.init(&SPI_3);
     motor.linkSensor(&angleSensor);
 
     motor.velocity_limit = 100;
+#if OPEN_LOOP == false
     motor.controller = MotionControlType::velocity;
+#else
+    motor.controller = MotionControlType::velocity_openloop;
+#endif // OPEN_LOOP == false
     motor.current_limit = current_limit;
 
     motor.PID_velocity.P = 0.2;
@@ -131,8 +153,8 @@ static void TaskRollerMotor(void *pvParameters)
     motor.voltage_limit = 0.5; // Set when running initFOC for CALIBRATION ONLY to be safe
     #else
     // Determined once with initFOC calibration
-    motor.sensor_direction = Direction::CCW;
-    motor.zero_electric_angle = 3.33;
+    motor.sensor_direction = Direction::CW;
+    motor.zero_electric_angle = 6.0;
     #endif // CALIBRATION_MODE
 
     motor.KV_rating = MOTOR_KV;

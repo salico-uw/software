@@ -2,7 +2,7 @@
 #include "monitor.h"
 #include "rollerMotor.h"
 
-#define TASK_PERIOD_MS 10U
+#define TASK_PERIOD_MS 200U
 #define ENCODER_BUTTON_PIN PB12
 #define BUTTON_DEBOUNCE_MS (100U) // ms
 
@@ -143,7 +143,7 @@ void initStateMachineTask(UBaseType_t priority)
     xTaskCreate(
     TaskStateMachine
     ,  (const portCHAR *)"State Machine"
-    ,  128
+    ,  256
     ,  NULL
     ,  priority
     ,  NULL );

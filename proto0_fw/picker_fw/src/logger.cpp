@@ -3,8 +3,9 @@
 #include "stateMachine.h"
 #include "rollerMotor.h"
 #include "logger.h"
+#include "display.h"
 
-#define TASK_PERIOD_MS 1000U
+#define TASK_PERIOD_MS 1500U
 
 static void TaskLogger(void *pvParameters)
 {
@@ -12,37 +13,44 @@ static void TaskLogger(void *pvParameters)
 
     const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
     // Setup
+	dp_setup();
 
     // Loop
     while (1)
     {
-		Serial.print("mode: ");
-		Serial.print(getState());
-		Serial.print(" angle: ");
-		Serial.print(getRollerMotorAngle());
-		Serial.print(" speed: ");
-		Serial.print(getRollerMotorSpeed());
-		Serial.print(" target speed: ");
-		Serial.print(getRollerMotorSpeedTarget());
-		Serial.print(" current: ");
-		Serial.print(getRollerMotorCurrent());
-		Serial.print(" limit: ");
-		Serial.println(getRollerMotorCurrentLimit());
+		
+		State_E state = getState();
+		float motorSpeed = getRollerMotorSpeed();
+		float speedTarget = getRollerMotorSpeedTarget();
+		float motorCurrent = getRollerMotorCurrent();
+		float currentLimit = getRollerMotorCurrentLimit();
+		// Serial.print("mode: ");
+		// Serial.print(state);
+		// Serial.print(" angle: ");
+		// Serial.print(getRollerMotorAngle());
+		// Serial.print(" speed: ");
+		// Serial.print(motorSpeed);
+		// Serial.print(" target speed: ");
+		// Serial.print(speedTarget);
+		// Serial.print(" current: ");
+		// Serial.print(motorCurrent);
+		// Serial.print(" limit: ");
+		// Serial.println(currentLimit);
 
-		// dp_clear();
-		// double value = 0.0f;
-		// double target = 0.0f;
-		// if(menuMode == OFF_MODE || menuMode == SPEED_MODE) {
-		//   value = motor.shaft_velocity;
-		//   target = speed_target;
-		// } else if(menuMode == CURRENT_MODE) {
-		//   value = motor.current.d + motor.current.q;
-		//   target = motor.current_limit;
-		// }
-		// dp_draw_num(value, 0);
-		// dp_draw_num(target, 1);
-		// dp_draw_mode(menuMode);
-		// dp_send();
+		dp_clear();
+		double value = 0.0f;
+		double target = 0.0f;
+		if(state == OFF_STATE || state == SPEED_STATE) {
+		  value = motorSpeed;
+		  target = speedTarget;
+		} else if(state == CURRENT_STATE) {
+		  value = motorCurrent;
+		  target = currentLimit;
+		}
+		dp_draw_num(value, 0);
+		dp_draw_num(target, 1);
+		dp_draw_state(state);
+		dp_send();
         vTaskDelay(xDelay);
     }
 }
@@ -52,7 +60,7 @@ void initLoggerTask(UBaseType_t priority)
     xTaskCreate(
     TaskLogger
     ,  (const portCHAR *)"Logger"
-    ,  128
+    ,  512
     ,  NULL
     ,  priority
     ,  NULL );
