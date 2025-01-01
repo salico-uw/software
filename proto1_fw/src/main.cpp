@@ -49,8 +49,8 @@ void loop()
 {
 	digitalWrite(13, HIGH);
 	Serial.println("HIGH");
-	delay(1000);
+	delay(500);
 	digitalWrite(13, LOW);
 	Serial.println("LOW");
-	delay(1000);
+	delay(500);
 }

@@ -2,6 +2,11 @@
 
 ## Setup
 
+Install the following:
+```
+sudo apt-get update
+sudo apt-get install stlink-tools vim
+```
 
 ### Development
 
