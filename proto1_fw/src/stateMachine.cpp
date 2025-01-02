@@ -3,8 +3,13 @@
 #include "rollerMotor.h"
 
 #define TASK_PERIOD_MS 200U
-#define ENCODER_BUTTON_PIN PB12
+#define ENCODER_BUTTON_PIN PC5
 #define BUTTON_DEBOUNCE_MS (200U) // ms
+
+#define SOLENOID_PIN PC9
+#define CONVEYOR_STEP_PIN PA6
+#define CONVEYOR_DIR_PIN PC1
+#define CONVEYOR_EN_PIN PC0
 
 State_E state = OFF_STATE;
 State_E next_state = OFF_STATE;
@@ -50,6 +55,31 @@ bool wasButtonPressed(){
   }
   prevButton = currButton;
   return pressed;
+}
+
+void extendPistons(void)
+{
+    digitalWrite(SOLENOID_PIN, HIGH);
+}
+
+void retractPistons(void)
+{
+    digitalWrite(SOLENOID_PIN, LOW);
+}
+
+void spinConveyor(void)
+{
+    digitalWrite(CONVEYOR_EN_PIN, LOW);
+    digitalWrite(CONVEYOR_DIR_PIN, LOW);
+    analogWriteFrequency(500);
+    analogWrite(CONVEYOR_STEP_PIN, 127); // Duty cycle does not matter, speed based on pwm freq
+    analogWriteFrequency(PWM_FREQUENCY);
+}
+
+void stopConveyor(void)
+{
+    analogWrite(CONVEYOR_STEP_PIN, 0);
+    digitalWrite(CONVEYOR_EN_PIN, HIGH);
 }
 
 State_E runOffState(void)
@@ -120,6 +150,12 @@ static void TaskStateMachine(void *pvParameters)
     const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
     // Setup
     pinMode(ENCODER_BUTTON_PIN, INPUT_PULLUP);
+    pinMode(SOLENOID_PIN, OUTPUT);
+    pinMode(CONVEYOR_STEP_PIN, OUTPUT);
+    pinMode(CONVEYOR_DIR_PIN, OUTPUT);
+    pinMode(CONVEYOR_EN_PIN, OUTPUT);
+    extendPistons();
+    stopConveyor();
 
     // Loop
     while (1)

@@ -26,8 +26,6 @@
 #define SUPPLY_VOLTAGE (24U)
 // Define specific motor we are using
 #define MOTOR_GEARBOX
-// Define if we are using SPI for custom motor controller
-#define USE_GD_SPI true
 
 // *****Rest of defines*****
 #ifdef MOTOR_F80
