@@ -7,7 +7,7 @@
 #define BUTTON_DEBOUNCE_MS (200U) // ms
 
 #define SOLENOID_PIN PC9
-#define CONVEYOR_STEP_PIN PA6
+#define CONVEYOR_STEP_PIN PA1
 #define CONVEYOR_DIR_PIN PC1
 #define CONVEYOR_EN_PIN PC0
 
@@ -132,6 +132,7 @@ State_E runCurrentState(void)
 void enterFaultState(State_E prev_state)
 {
     setRollerMotorEnable(false);
+    stopConveyor();
     Serial.print("FAULTED bits: ");
     Serial.println(getMonitorTripBits(), BIN);
 }

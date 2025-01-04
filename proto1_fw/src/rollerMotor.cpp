@@ -6,7 +6,7 @@
 // *****Adjustable defines*****
 #define TASK_PERIOD_MS 1U
 
-#define DUAL_MOTOR false // BOTH MOTORS MUST BE THE SAME
+#define DUAL_MOTOR true // BOTH MOTORS MUST BE THE SAME
 #define PWM_MODE 3 // For 3pwm make sure the pwms are tied together
 #if (SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH) == true && (PWM_MODE == 6)
 #error "L6398 has low side active low"
@@ -22,17 +22,21 @@
 #define MAX_SPEED 200.0f // rad/s
 #define CURRENT_INCREMENT 0.5f // rad/s
 #define MAX_CURRENT 15.0f // amps
+#define PWM_FREQ 15000U // Hz - Lower pwm freq (from 25kHz default) to reduce switching loss
 
 #define SUPPLY_VOLTAGE (24U)
 // Define specific motor we are using
 #define MOTOR_GEARBOX
 
 // *****Rest of defines*****
-#ifdef MOTOR_F80
-#define MOTOR_KV 1900U
+#ifdef MOTOR_12V
+#if SUPPLY_VOLTAGE > 12U
+#error "Cannot use this motor with >12V supply"
+#endif
+#define MOTOR_KV 1000U
 #define MOTOR_POLE_PAIRS 7U
-#define MOTOR_PHASE_RESISTANCE 0.15f
-#endif // MOTOR_F80
+#define MOTOR_PHASE_RESISTANCE 0.25f
+#endif // MOTOR_12V
 
 #ifdef MOTOR_AT3520
 #define MOTOR_KV 880U
@@ -79,7 +83,7 @@ void onMotor1(char* cmd){ commander.motor(&motor1,cmd); }
 void onMotor2(char* cmd){ commander.motor(&motor2,cmd); }
 
 double speed_target = 0.0f; // rad/s
-double current_limit = 3.0f; // amps
+double current_limit = 2.0f; // amps
 void checkEncoder() {
   State_E state = getState();
   if(state == SPEED_STATE || state == CURRENT_STATE)
@@ -131,7 +135,7 @@ static void TaskRollerMotor(void *pvParameters)
     // Motor 1
     motor1.useMonitoring(Serial);
     driver1.voltage_power_supply = SUPPLY_VOLTAGE;
-    driver1.pwm_frequency = 15000; // Lower pwm freq (from 25kHz default) to reduce switching loss
+    driver1.pwm_frequency = PWM_FREQ;
     driver1.init();
     motor1.linkDriver(&driver1);
 
@@ -145,7 +149,7 @@ static void TaskRollerMotor(void *pvParameters)
     // Motor 2
     motor2.useMonitoring(Serial);
     driver2.voltage_power_supply = SUPPLY_VOLTAGE;
-    driver2.pwm_frequency = 15000; // Lower pwm freq (from 25kHz default) to reduce switching loss
+    driver2.pwm_frequency = PWM_FREQ;
     driver2.init();
     motor2.linkDriver(&driver2);
 

@@ -14,7 +14,7 @@ static void TaskLogger(void *pvParameters)
 
     const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
     // Setup
-	dp_setup();
+	// dp_setup();
 
     // Loop
     while (1)
