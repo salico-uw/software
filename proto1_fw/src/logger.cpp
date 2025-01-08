@@ -23,23 +23,23 @@ static void TaskLogger(void *pvParameters)
 		float speedTarget = getRollerMotorSpeedTarget();
 		float currentLimit = getRollerMotorCurrentLimit();
 
-		Serial.print("S: "); // state
+		Serial.print("S:"); // state
 		Serial.print(state);
-		Serial.print(" Sp/!Cu: "); // Speed or current Mode
+		Serial.print(",Sp/!Cu:"); // Speed or current Mode
 		Serial.print(getInSpeedMode());
-		Serial.print(" TW: "); // target speed
+		Serial.print(",TW:"); // target speed
 		Serial.print(speedTarget);
-		Serial.print(" W1: "); // motor speed (rad/s)
+		Serial.print(",W1:"); // motor speed (rad/s)
 		Serial.print(getRollerMotor1Speed());
-		Serial.print(" W2: "); // motor speed (rad/s)
+		Serial.print(",W2:"); // motor speed (rad/s)
 		Serial.print(getRollerMotor2Speed());
-		Serial.print(" CL: "); // current limit
+		Serial.print(",CL:"); // current limit
 		Serial.print(currentLimit);
-		Serial.print(" C1: "); // motor current (A)
+		Serial.print(",C1:"); // motor current (A)
 		Serial.print(getRollerMotor1Current());
-		Serial.print(" C2: "); // motor current (A)
+		Serial.print(",C2:"); // motor current (A)
 		Serial.print(getRollerMotor2Current());
-		Serial.print(" FB: "); // fault bits
+		Serial.print(",FB:"); // fault bits
 		Serial.println(getMonitorTripBits(), BIN);
 		// Serial.print("Hall A: ");
 		// Serial.print(analogRead(PB3));
