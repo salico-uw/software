@@ -28,7 +28,7 @@ def write_buf():
     lines_buf = []
 
 while True:
-  if not os.path.exists(DEVICE):
+  if not os.path.exists(DEVICE) or not ser.isOpen():
     time.sleep(2)
     # try to reconnect after 2 seconds
     try:
@@ -50,7 +50,8 @@ while True:
     lines_buf.append(logline)
     write_buf()
 
-  except serial.serialutil.SerialException:
+  except serial.serialutil.SerialException as e:
     # Close the serial connection if disconnected
+    print(e)
     ser.close()
     continue
