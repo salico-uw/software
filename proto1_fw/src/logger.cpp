@@ -14,28 +14,31 @@ static void TaskLogger(void *pvParameters)
 
     const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
     // Setup
-	dp_setup();
+	// dp_setup();
 
     // Loop
     while (1)
     {
 		State_E state = getState();
-		float motorSpeed = getRollerMotorSpeed();
 		float speedTarget = getRollerMotorSpeedTarget();
-		float motorCurrent = getRollerMotorCurrent();
 		float currentLimit = getRollerMotorCurrentLimit();
+
 		Serial.print("S: "); // state
 		Serial.print(state);
-		Serial.print(" A: "); // motor angle
-		Serial.print(getRollerMotorAngle());
-		Serial.print(" W: "); // motor speed (rad/s)
-		Serial.print(motorSpeed);
+		Serial.print(" Sp/!Cu: "); // Speed or current Mode
+		Serial.print(getInSpeedMode());
 		Serial.print(" TW: "); // target speed
 		Serial.print(speedTarget);
-		Serial.print(" C: "); // motor current (A)
-		Serial.print(motorCurrent);
+		Serial.print(" W1: "); // motor speed (rad/s)
+		Serial.print(getRollerMotor1Speed());
+		Serial.print(" W2: "); // motor speed (rad/s)
+		Serial.print(getRollerMotor2Speed());
 		Serial.print(" CL: "); // current limit
 		Serial.print(currentLimit);
+		Serial.print(" C1: "); // motor current (A)
+		Serial.print(getRollerMotor1Current());
+		Serial.print(" C2: "); // motor current (A)
+		Serial.print(getRollerMotor2Current());
 		Serial.print(" FB: "); // fault bits
 		Serial.println(getMonitorTripBits(), BIN);
 		// Serial.print("Hall A: ");
