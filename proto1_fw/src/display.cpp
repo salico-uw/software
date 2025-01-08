@@ -42,11 +42,11 @@ void dp_draw_state(State_E state) {
     case OFF_STATE:
       state_char = "X";
       break;
-    case SPEED_STATE:
-      state_char = "S";
+    case EXTENDED_STATE:
+      state_char = "E";
       break;
-    case CURRENT_STATE:
-      state_char = "C";
+    case RETRACTED_STATE:
+      state_char = "R";
       break;
     case FAULT_STATE:
       state_char = "F";
