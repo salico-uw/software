@@ -48,29 +48,34 @@ void setup()
 void loop()
 {
 #if TEST_MODE
-	int state = int(random(5));
-	int mode = int(random(2));
-	long speed = random(1);
-	long current = random(1);
 		
-	Serial.print("S:"); // state
-	Serial.print(state);
-	Serial.print(",Sp/!Cu:"); // Speed or current Mode
-	Serial.print(mode);
-	Serial.print(",TW:"); // target speed
-	Serial.print(speed);
-	Serial.print(",W1:"); // motor speed (rad/s)
-	Serial.print(speed);
-	Serial.print(",W2:"); // motor speed (rad/s)
-	Serial.print(speed);
-	Serial.print(",CL:"); // current limit
-	Serial.print(current);
-	Serial.print(",C1:"); // motor current (A)
-	Serial.print(current);
-	Serial.print(",C2:"); // motor current (A)
-	Serial.print(current);
-	Serial.print(",FB:"); // fault bits
-	Serial.println(mode);
-	delay(1000);
+	int state = 1;
+	int mode = 2;
+	float speed = 1.2345;
+	float current = 5.6789;
+
+	while(1) {
+		speed += 0.2;
+		current += 2.3;
+		Serial.print("S:"); // state
+		Serial.print(state);
+		Serial.print(",Sp/!Cu:"); // Speed or current Mode
+		Serial.print(mode);
+		Serial.print(",TW:"); // target speed
+		Serial.print(speed);
+		Serial.print(",W1:"); // motor speed (rad/s)
+		Serial.print(speed);
+		Serial.print(",W2:"); // motor speed (rad/s)
+		Serial.print(speed);
+		Serial.print(",CL:"); // current limit
+		Serial.print(current);
+		Serial.print(",C1:"); // motor current (A)
+		Serial.print(current);
+		Serial.print(",C2:"); // motor current (A)
+		Serial.print(current);
+		Serial.print(",FB:"); // fault bits
+		Serial.println(mode);
+		delay(1000);
+	}
 #endif
 }

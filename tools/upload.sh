@@ -3,7 +3,7 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 USER=salico
-IP=192.168.2.56 # change this as needed
+IP=192.168.0.111 # change this as needed
 
 BIN_PATH=$1
 BIN_FILE="${BIN_PATH##*/}"
