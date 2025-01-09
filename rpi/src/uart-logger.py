@@ -56,8 +56,6 @@ def write_buf():
   global lines_buf
   if len(lines_buf) >= n:
     filename = datetime.now().strftime('%Y-%m-%d')
-    print("Writing to file:")
-    print(lines_buf[0])
     with open(f"{OUT_DIR}/{filename}.txt", "a+") as f:
       f.write(''.join(lines_buf))
     lines_buf = []
@@ -82,7 +80,6 @@ while True:
     ctime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     logline = f"{ctime}//{line.decode()}"
     write_display(logline)
-    print(logline, end="")
     lines_buf.append(logline)
     write_buf()
 
