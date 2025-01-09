@@ -1,0 +1,90 @@
+#!/usr/bin/python
+import os.path
+import serial
+import time
+import serial.serialutil
+from datetime import datetime
+
+from luma.core.interface.serial import i2c, spi, pcf8574
+from luma.core.interface.parallel import bitbang_6800
+from luma.core.render import canvas
+from luma.oled.device import ssd1306, ssd1309, ssd1325, ssd1331, sh1106, sh1107, ws0010
+from PIL import ImageFont
+
+# rev.1 users set port=0
+# substitute spi(device=0, port=0) below if using that interface
+# substitute bitbang_6800(RS=7, E=8, PINS=[25,24,23,27]) below if using that interface
+i2c_serial = i2c(port=1, address=0x3C)
+
+# substitute ssd1331(...) or sh1106(...) below if using that device
+display = ssd1306(i2c_serial, width=128, height=32)
+
+DEVICE = '/dev/ttyACM0'
+BAUD = 1000000
+OUT_DIR = '/home/salico/salico/log'
+
+ser = serial.Serial()
+
+# Buffer to store data
+lines_buf = []
+
+# Number of lines to write to buffer before storing to disk
+n = 20
+
+def write_display(logline):
+  metrics_l = [x.split(":") for x in logline.split("//")[1].split(",")]
+  if len(metrics_l) < 9:
+    return
+  metrics = {m[0]: m[1] for m in metrics_l}
+  
+  strings = []
+  is_speed_mode = int(metrics["Sp/!Cu"]) == 1
+  strings.append(float(metrics["TW"] if is_speed_mode else metrics["CL"]))
+  strings.append(float(metrics["W1"] if is_speed_mode else metrics["C1"]))
+  strings.append(float(metrics["W2"] if is_speed_mode else metrics["C2"]))
+  
+  font = ImageFont.truetype("DejaVuSans.ttf", 12)
+  with canvas(display) as draw:
+    draw.text((0, 0), f">{strings[0]:.2f}<", fill="white", font=font)
+    draw.text((70, 0), f"1:{strings[1]:.2f}", fill="white", font=font)
+    draw.text((70, 16), f"2:{strings[2]:.2f}", fill="white", font=font)
+
+    draw.text((0, 16), f"{metrics['S']}", fill="white", font=font)
+    draw.text((20, 16), f"{'Sp' if is_speed_mode else 'Cu'}", fill="white", font=font)
+
+def write_buf():
+  global lines_buf
+  if len(lines_buf) >= n:
+    filename = datetime.now().strftime('%Y-%m-%d')
+    with open(f"{OUT_DIR}/{filename}.txt", "a+") as f:
+      f.write(''.join(lines_buf))
+    lines_buf = []
+
+while True:
+  if not os.path.exists(DEVICE) or not ser.isOpen():
+    time.sleep(2)
+    # try to reconnect after 2 seconds
+    try:
+      ser = serial.Serial(DEVICE, BAUD)
+      ser.flushInput()
+      print(f">>Connection Re-established")
+    except:
+      print(f">>{DEVICE} not found")
+    continue
+
+  try:
+    line = ser.readline()
+    # No data found
+    if len(line) == "0":
+      continue
+    ctime = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    logline = f"{ctime}//{line.decode()}"
+    write_display(logline)
+    lines_buf.append(logline)
+    write_buf()
+
+  except serial.serialutil.SerialException as e:
+    # Close the serial connection if disconnected
+    print(e)
+    ser.close()
+    continue

@@ -6,7 +6,7 @@
 // *****Adjustable defines*****
 #define TASK_PERIOD_MS 1U
 
-#define DUAL_MOTOR false // BOTH MOTORS MUST BE THE SAME
+#define DUAL_MOTOR true // BOTH MOTORS MUST BE THE SAME
 #define PWM_MODE 3 // For 3pwm make sure the pwms are tied together
 #if (SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH) == true && (PWM_MODE == 6)
 #error "L6398 has low side active low"
@@ -22,17 +22,21 @@
 #define MAX_SPEED 200.0f // rad/s
 #define CURRENT_INCREMENT 0.5f // rad/s
 #define MAX_CURRENT 15.0f // amps
+#define PWM_FREQ 15000U // Hz - Lower pwm freq (from 25kHz default) to reduce switching loss
 
 #define SUPPLY_VOLTAGE (24U)
 // Define specific motor we are using
 #define MOTOR_GEARBOX
 
 // *****Rest of defines*****
-#ifdef MOTOR_F80
-#define MOTOR_KV 1900U
+#ifdef MOTOR_12V
+#if SUPPLY_VOLTAGE > 12U
+#error "Cannot use this motor with >12V supply"
+#endif
+#define MOTOR_KV 1000U
 #define MOTOR_POLE_PAIRS 7U
-#define MOTOR_PHASE_RESISTANCE 0.15f
-#endif // MOTOR_F80
+#define MOTOR_PHASE_RESISTANCE 0.25f
+#endif // MOTOR_12V
 
 #ifdef MOTOR_AT3520
 #define MOTOR_KV 880U
@@ -52,12 +56,19 @@
 #define MOTOR_PHASE_RESISTANCE 0.35f 
 #endif // MOTOR_U8
 
+#define BUTTON_CHECK_INTERVAL_MS (50U)
+#define BUTTON_DEBOUNCE_MS (200U) // ms
+#define MOTOR_BUTTON_PIN PC5
+
 #define UH1 PA8
 #define UH2 PA7
 #define VH1 PA9
 #define VH2 PB0
 #define WH1 PA10
 #define WH2 PB1
+
+bool prevMotorButton = true; // active low
+uint32_t motor_last_millis = 0U;
 
 BLDCDriver3PWM driver1 = BLDCDriver3PWM(UH1, VH1, WH1);
 BLDCDriver3PWM driver2 = BLDCDriver3PWM(UH2, VH2, WH2);
@@ -78,18 +89,41 @@ Commander commander = Commander(Serial);
 void onMotor1(char* cmd){ commander.motor(&motor1,cmd); }
 void onMotor2(char* cmd){ commander.motor(&motor2,cmd); }
 
+bool in_speed_mode = true; // Start in speed mode, alternate between current mode on button press
 double speed_target = 0.0f; // rad/s
-double current_limit = 3.0f; // amps
+double current_limit = 2.0f; // amps
+
+bool wasMotorButtonPressed(){
+    bool pressed = false;
+    // Only check button press in larger time intervals to ignore short transients
+    if((millis() % BUTTON_CHECK_INTERVAL_MS) == 0)
+    {
+        // handle overflow case
+        if (millis() < motor_last_millis)
+        {
+            motor_last_millis = millis();
+        }
+        bool currButton = digitalRead(MOTOR_BUTTON_PIN);
+        if(currButton == false && prevMotorButton == true && (millis() - motor_last_millis) > BUTTON_DEBOUNCE_MS)
+        {
+            pressed = true;
+            motor_last_millis = millis();
+        }
+        prevMotorButton = currButton;
+    }
+    return pressed;
+}
+
 void checkEncoder() {
   State_E state = getState();
-  if(state == SPEED_STATE || state == CURRENT_STATE)
+  if(state != OFF_STATE)
   {
     // Initialize as speed mode
     double mode_increment = SPEED_INCREMENT;
     double upper_limit = MAX_SPEED;
     double lower_limit = -MAX_SPEED;
     double * target = &speed_target;
-    if(state == CURRENT_STATE)
+    if(in_speed_mode == false)
     {
       mode_increment = CURRENT_INCREMENT;
       upper_limit = MAX_CURRENT;
@@ -122,6 +156,7 @@ static void TaskRollerMotor(void *pvParameters)
 
     const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
     // Setup
+    pinMode(MOTOR_BUTTON_PIN, INPUT_PULLUP);
     encoderSetup();
 
     commander.add('M',onMotor1,"Motor 1");
@@ -131,7 +166,7 @@ static void TaskRollerMotor(void *pvParameters)
     // Motor 1
     motor1.useMonitoring(Serial);
     driver1.voltage_power_supply = SUPPLY_VOLTAGE;
-    driver1.pwm_frequency = 15000; // Lower pwm freq (from 25kHz default) to reduce switching loss
+    driver1.pwm_frequency = PWM_FREQ;
     driver1.init();
     motor1.linkDriver(&driver1);
 
@@ -145,7 +180,7 @@ static void TaskRollerMotor(void *pvParameters)
     // Motor 2
     motor2.useMonitoring(Serial);
     driver2.voltage_power_supply = SUPPLY_VOLTAGE;
-    driver2.pwm_frequency = 15000; // Lower pwm freq (from 25kHz default) to reduce switching loss
+    driver2.pwm_frequency = PWM_FREQ;
     driver2.init();
     motor2.linkDriver(&driver2);
 
@@ -174,13 +209,13 @@ static void TaskRollerMotor(void *pvParameters)
     motor1.LPF_velocity.Tf = 0.4;
 
     motor1.voltage_sensor_align = 0.5;
-    #if CALIBRATION_MODE
+#if CALIBRATION_MODE
     motor1.voltage_limit = 0.5; // Set when running initFOC for CALIBRATION ONLY to be safe
-    #else
+#else
     // Determined once with initFOC calibration
     motor1.sensor_direction = Direction::CW;
     motor1.zero_electric_angle = 3.14;
-    #endif // CALIBRATION_MODE
+#endif // CALIBRATION_MODE
 
     motor1.KV_rating = MOTOR_KV;
     motor1.init();
@@ -199,13 +234,13 @@ static void TaskRollerMotor(void *pvParameters)
     motor2.LPF_velocity.Tf = 0.4;
 
     motor2.voltage_sensor_align = 0.5;
-    #if CALIBRATION_MODE
+#if CALIBRATION_MODE
     motor2.voltage_limit = 0.5; // Set when running initFOC for CALIBRATION ONLY to be safe
-    #else
+#else
     // Determined once with initFOC calibration
     motor2.sensor_direction = Direction::CW;
     motor2.zero_electric_angle = 6.0;
-    #endif // CALIBRATION_MODE
+#endif // CALIBRATION_MODE
 
     motor2.KV_rating = MOTOR_KV;
     motor2.init();
@@ -217,6 +252,10 @@ static void TaskRollerMotor(void *pvParameters)
     // Loop
     while (1)
     {
+        if(wasMotorButtonPressed())
+        {
+            in_speed_mode = !in_speed_mode;
+        }
         commander.run();
         checkEncoder();
 
@@ -268,17 +307,44 @@ void setRollerMotorEnable(bool enable)
 
 bool getRollerMotorEnabled(void)
 {
-    return motor1.enabled || motor2.enabled;
+    bool enabled = motor1.enabled;
+#if DUAL_MOTOR
+    enabled |= motor2.enabled;
+#endif // DUAL_MOTOR
+    return enabled;
 }
 
-float getRollerMotorAngle(void)
+bool getInSpeedMode(void)
+{
+    return in_speed_mode;
+}
+
+float getRollerMotor1Angle(void)
 {
     return sensor1.getAngle();
 }
 
-float getRollerMotorSpeed(void)
+float getRollerMotor2Angle(void)
+{
+#if DUAL_MOTOR
+    return sensor2.getAngle();
+#elif
+    return 0.0f;
+#endif // DUAL_MOTOR
+}
+
+float getRollerMotor1Speed(void)
 {
     return motor1.shaft_velocity;
+}
+
+float getRollerMotor2Speed(void)
+{
+#if DUAL_MOTOR
+    return motor2.shaft_velocity;
+#elif
+    return 0.0f;
+#endif // DUAL_MOTOR
 }
 
 float getRollerMotorSpeedTarget(void)
@@ -286,9 +352,18 @@ float getRollerMotorSpeedTarget(void)
     return speed_target;
 }
 
-float getRollerMotorCurrent(void)
+float getRollerMotor1Current(void)
 {
     return motor1.current.d + motor1.current.q;
+}
+
+float getRollerMotor2Current(void)
+{
+#if DUAL_MOTOR
+    return motor2.current.d + motor2.current.q;
+#elif
+    return 0.0f;
+#endif // DUAL_MOTOR
 }
 
 float getRollerMotorCurrentLimit(void)

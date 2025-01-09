@@ -3,19 +3,19 @@
 #include "rollerMotor.h"
 
 #define TASK_PERIOD_MS 200U
-#define ENCODER_BUTTON_PIN PC5
+#define STATE_BUTTON_PIN PA5
 #define BUTTON_DEBOUNCE_MS (200U) // ms
 
 #define SOLENOID_PIN PC9
-#define CONVEYOR_STEP_PIN PA6
+#define CONVEYOR_STEP_PIN PA1
 #define CONVEYOR_DIR_PIN PC1
 #define CONVEYOR_EN_PIN PC0
 
 State_E state = OFF_STATE;
 State_E next_state = OFF_STATE;
 State_E prev_state = OFF_STATE;
-bool prevButton = true; // active low
-uint32_t last_millis = 0U;
+bool prevStateButton = true; // active low
+uint32_t state_last_millis = 0U;
 
 typedef struct {
     void (*enterState)(State_E prev_state);
@@ -25,36 +25,37 @@ typedef struct {
 
 // State functions, every state must have a run function
 State_E runOffState(void);
-void exitOffState(State_E next_state);
-State_E runSpeedState(void);
-State_E runCurrentState(void);
+void enterExtendedState(State_E prev_state);
+State_E runExtendedState(void);
+void enterRetractedState(State_E prev_state);
+State_E runRetractedState(void);
 void enterFaultState(State_E prev_state);
 State_E runFaultState(void);
 
 // Ensure all states get added to stateFunction
 stateFunction_t stateFunction[STATE_COUNT] =
 {
-    [OFF_STATE] = {.enterState = NULL, .runState = &runOffState, .exitState = exitOffState},
-    [SPEED_STATE] = {.enterState = NULL, .runState = &runSpeedState, .exitState = NULL},
-    [CURRENT_STATE] = {.enterState = NULL, .runState = &runCurrentState, .exitState = NULL},
-    [FAULT_STATE] = {.enterState = enterFaultState, .runState = &runFaultState, .exitState = NULL},
+    [OFF_STATE] = {.enterState = NULL, .runState = &runOffState, .exitState = NULL},
+    [EXTENDED_STATE] = {.enterState = &enterExtendedState, .runState = &runExtendedState, .exitState = NULL},
+    [RETRACTED_STATE] = {.enterState = &enterRetractedState, .runState = &runRetractedState, .exitState = NULL},
+    [FAULT_STATE] = {.enterState = &enterFaultState, .runState = &runFaultState, .exitState = NULL},
 };
 
-bool wasButtonPressed(){
-  bool pressed = false;
-  // handle overflow case
-  if (millis() < last_millis)
-  {
-    last_millis = millis();
-  }
-  bool currButton = digitalRead(ENCODER_BUTTON_PIN);
-  if(currButton == false && prevButton == true && (millis() - last_millis) > BUTTON_DEBOUNCE_MS)
-  {
-    pressed = true;
-    last_millis = millis();
-  }
-  prevButton = currButton;
-  return pressed;
+bool wasStateButtonPressed(){
+    bool pressed = false;
+    // handle overflow case
+    if (millis() < state_last_millis)
+    {
+        state_last_millis = millis();
+    }
+    bool currButton = digitalRead(STATE_BUTTON_PIN);
+    if(currButton == false && prevStateButton == true && (millis() - state_last_millis) > BUTTON_DEBOUNCE_MS)
+    {
+        pressed = true;
+        state_last_millis = millis();
+    }
+    prevStateButton = currButton;
+    return pressed;
 }
 
 void extendPistons(void)
@@ -89,42 +90,49 @@ State_E runOffState(void)
     {
         next = FAULT_STATE;
     }
-    else if(wasButtonPressed())
+    else if(wasStateButtonPressed())
     {
-        next = SPEED_STATE;
+        next = EXTENDED_STATE;
     }
     return next;
 }
 
-void exitOffState(State_E next_state)
+void enterExtendedState(State_E prev_state)
 {
     setRollerMotorEnable(true);
+    extendPistons();
 }
 
-State_E runSpeedState(void)
+State_E runExtendedState(void)
 {
-    State_E next = SPEED_STATE;
+    State_E next = EXTENDED_STATE;
     if(getMonitorTripped())
     {
         next = FAULT_STATE;
     }
-    else if(wasButtonPressed())
+    else if(wasStateButtonPressed())
     {
-        next = CURRENT_STATE;
+        next = RETRACTED_STATE;
     }
     return next;
 }
 
-State_E runCurrentState(void)
+void enterRetractedState(State_E prev_state)
 {
-    State_E next = CURRENT_STATE;
+    setRollerMotorEnable(false);
+    retractPistons();
+}
+
+State_E runRetractedState(void)
+{
+    State_E next = RETRACTED_STATE;
     if(getMonitorTripped())
     {
         next = FAULT_STATE;
     }
-    else if(wasButtonPressed())
+    else if(wasStateButtonPressed())
     {
-        next = SPEED_STATE;
+        next = EXTENDED_STATE;
     }
     return next;
 }
@@ -132,6 +140,8 @@ State_E runCurrentState(void)
 void enterFaultState(State_E prev_state)
 {
     setRollerMotorEnable(false);
+    stopConveyor();
+    extendPistons();
     Serial.print("FAULTED bits: ");
     Serial.println(getMonitorTripBits(), BIN);
 }
@@ -149,7 +159,7 @@ static void TaskStateMachine(void *pvParameters)
 
     const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
     // Setup
-    pinMode(ENCODER_BUTTON_PIN, INPUT_PULLUP);
+    pinMode(STATE_BUTTON_PIN, INPUT_PULLUP);
     pinMode(SOLENOID_PIN, OUTPUT);
     pinMode(CONVEYOR_STEP_PIN, OUTPUT);
     pinMode(CONVEYOR_DIR_PIN, OUTPUT);

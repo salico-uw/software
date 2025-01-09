@@ -8,8 +8,7 @@ IP=192.168.0.111 # change this as needed
 BIN_PATH=$1
 BIN_FILE="${BIN_PATH##*/}"
 
-TARGET_DIR=/home/salico/build
-COMMAND="st-flash --reset write firmware.bin 0x08000000"
+TARGET_DIR=/home/salico/
 
 if [[ "$#" -ne 1 ]]; then
     echo "USAGE: ./upload.sh <path_to_bin>"
@@ -17,5 +16,5 @@ if [[ "$#" -ne 1 ]]; then
     exit 1
 fi
 
-scp $BIN_PATH $USER@$IP:$TARGET_DIR
+scp $BIN_PATH $USER@$IP:$TARGET_DIR/$BIN_FILE
 ssh $USER@$IP "st-flash --reset write $TARGET_DIR/$BIN_FILE 0x08000000"

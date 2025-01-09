@@ -16,8 +16,14 @@
  * SSD1306 128x32 OLED I2C display
  * rotary encoder with pushbutton for mode control
  */
+
+#define TEST_MODE true
+
 void setup()
 {
+#if TEST_MODE
+	pinMode(13, OUTPUT);
+#else
 	Serial.begin(115200);
 	while (!Serial) {}
 	Serial.print("Init RTOS with sysclock: ");
@@ -36,9 +42,13 @@ void setup()
 	// Start RTOS
 	vTaskStartScheduler();
 	while(1);
+#endif
 }
 
 void loop()
 {
-
+	digitalWrite(13, HIGH);
+	delay(1000);
+	digitalWrite(13, LOW);
+	delay(1000);
 }
