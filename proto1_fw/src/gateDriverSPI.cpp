@@ -23,6 +23,7 @@
 #define NCS_PIN1 PD2
 #define NCS_PIN2 PA15
 SPIClass GD_SPI(PC12, PC11, PC10);
+bool initComplete = false;
 bool healthy = true;
 
 uint16_t transmitSPI(uint16_t mosi, uint8_t CS_PIN)
@@ -80,6 +81,7 @@ void setupSPI(void)
     setupCorrect &= readSPIRegister(DRIVER_CONTROL_ADDR, NCS_PIN2) == PWM3_CONFIG;
 #endif // DUAL_GD
 
+    initComplete = true;
     healthy = setupCorrect;
     Serial.print("GD Healthy: ");
     Serial.println(healthy);
@@ -136,4 +138,9 @@ void initGateDriverSPITask(UBaseType_t priority)
 bool isGateDriverHealthy()
 {
     return healthy;
+}
+
+bool isGDInitFinished()
+{
+    return initComplete;
 }

@@ -11,7 +11,8 @@
 #include "logger.h"
 #include "gateDriverSPI.h"
 
-#define TEST_MODE true
+// For RPI logging mocks.
+#define TEST_MODE false
 
 /* Using STMF401RE Nucleo with IHM08M1 motor sheild,
  * AS5047P SPI angle sensor

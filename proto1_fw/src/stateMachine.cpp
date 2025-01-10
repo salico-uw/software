@@ -4,7 +4,7 @@
 
 #define TASK_PERIOD_MS 200U
 #define STATE_BUTTON_PIN PA5
-#define BUTTON_DEBOUNCE_MS (200U) // ms
+#define BUTTON_DEBOUNCE_MS (250U) // ms
 
 #define SOLENOID_PIN PC9
 #define CONVEYOR_STEP_PIN PA1
@@ -58,14 +58,14 @@ bool wasStateButtonPressed(){
     return pressed;
 }
 
-void extendPistons(void)
-{
-    digitalWrite(SOLENOID_PIN, HIGH);
-}
-
-void retractPistons(void)
+void dropRoller(void)
 {
     digitalWrite(SOLENOID_PIN, LOW);
+}
+
+void raiseRoller(void)
+{
+    digitalWrite(SOLENOID_PIN, HIGH);
 }
 
 void spinConveyor(void)
@@ -100,7 +100,7 @@ State_E runOffState(void)
 void enterExtendedState(State_E prev_state)
 {
     setRollerMotorEnable(true);
-    extendPistons();
+    dropRoller();
 }
 
 State_E runExtendedState(void)
@@ -120,7 +120,7 @@ State_E runExtendedState(void)
 void enterRetractedState(State_E prev_state)
 {
     setRollerMotorEnable(false);
-    retractPistons();
+    raiseRoller();
 }
 
 State_E runRetractedState(void)
@@ -141,7 +141,7 @@ void enterFaultState(State_E prev_state)
 {
     setRollerMotorEnable(false);
     stopConveyor();
-    extendPistons();
+    dropRoller();
     Serial.print("FAULTED bits: ");
     Serial.println(getMonitorTripBits(), BIN);
 }
@@ -164,7 +164,7 @@ static void TaskStateMachine(void *pvParameters)
     pinMode(CONVEYOR_STEP_PIN, OUTPUT);
     pinMode(CONVEYOR_DIR_PIN, OUTPUT);
     pinMode(CONVEYOR_EN_PIN, OUTPUT);
-    extendPistons();
+    dropRoller();
     stopConveyor();
 
     // Loop

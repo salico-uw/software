@@ -39,6 +39,10 @@ static void TaskLogger(void *pvParameters)
 		Serial.print(getRollerMotor1Current());
 		Serial.print(",C2:"); // motor current (A)
 		Serial.print(getRollerMotor2Current());
+		Serial.print(",A1:"); // motor speed rad
+		Serial.print(getRollerMotor1Angle());
+		Serial.print(",A2:"); // motor angle rad
+		Serial.print(getRollerMotor2Angle());
 		Serial.print(",FB:"); // fault bits
 		Serial.println(getMonitorTripBits(), BIN);
 		// Serial.print("Hall A: ");

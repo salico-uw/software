@@ -2,6 +2,7 @@
 #include "stateMachine.h"
 #include "encoder.h"
 #include "monitor.h"
+#include "gateDriverSPI.h"
 
 // *****Adjustable defines*****
 #define TASK_PERIOD_MS 1U
@@ -13,7 +14,7 @@
 #endif
 
 // Toggle for open loop for testing
-#define OPEN_LOOP false // Dont set when CALIBRATION_MODE == true
+#define OPEN_LOOP true // Dont set when CALIBRATION_MODE == true
 #if OPEN_LOOP && CALIBRATION_MODE
 #error "Cannot calibrate in open loop mode"
 #endif
@@ -21,7 +22,7 @@
 #define SPEED_INCREMENT 1.0f // rad/s
 #define MAX_SPEED 200.0f // rad/s
 #define CURRENT_INCREMENT 0.5f // rad/s
-#define MAX_CURRENT 15.0f // amps
+#define MAX_CURRENT 7.0f // amps
 #define PWM_FREQ 15000U // Hz - Lower pwm freq (from 25kHz default) to reduce switching loss
 
 #define SUPPLY_VOLTAGE (24U)
@@ -56,8 +57,8 @@
 #define MOTOR_PHASE_RESISTANCE 0.35f 
 #endif // MOTOR_U8
 
-#define BUTTON_CHECK_INTERVAL_MS (50U)
-#define BUTTON_DEBOUNCE_MS (200U) // ms
+#define BUTTON_CHECK_INTERVAL_MS (100U)
+#define BUTTON_DEBOUNCE_MS (250U) // ms
 #define MOTOR_BUTTON_PIN PC5
 
 #define UH1 PA8
@@ -208,19 +209,18 @@ static void TaskRollerMotor(void *pvParameters)
     motor1.PID_velocity.output_ramp = 1000;
     motor1.LPF_velocity.Tf = 0.4;
 
-    motor1.voltage_sensor_align = 0.5;
+    motor1.voltage_sensor_align = 0.7;
 #if CALIBRATION_MODE
-    motor1.voltage_limit = 0.5; // Set when running initFOC for CALIBRATION ONLY to be safe
+    motor1.voltage_limit = 0.7; // Set when running initFOC for CALIBRATION ONLY to be safe
 #else
     // Determined once with initFOC calibration
     motor1.sensor_direction = Direction::CW;
-    motor1.zero_electric_angle = 3.14;
+    motor1.zero_electric_angle = 5.24;
 #endif // CALIBRATION_MODE
 
     motor1.KV_rating = MOTOR_KV;
     motor1.init();
 
-    motor1.initFOC();
     motor1.disable();
 
 #if DUAL_MOTOR
@@ -233,25 +233,42 @@ static void TaskRollerMotor(void *pvParameters)
     motor2.PID_velocity.output_ramp = 1000;
     motor2.LPF_velocity.Tf = 0.4;
 
-    motor2.voltage_sensor_align = 0.5;
+    motor2.voltage_sensor_align = 0.7;
 #if CALIBRATION_MODE
-    motor2.voltage_limit = 0.5; // Set when running initFOC for CALIBRATION ONLY to be safe
+    motor2.voltage_limit = 0.7; // Set when running initFOC for CALIBRATION ONLY to be safe
 #else
     // Determined once with initFOC calibration
     motor2.sensor_direction = Direction::CW;
-    motor2.zero_electric_angle = 6.0;
+    motor2.zero_electric_angle = 5.24;
 #endif // CALIBRATION_MODE
 
     motor2.KV_rating = MOTOR_KV;
     motor2.init();
 
-    motor2.initFOC();
     motor2.disable();
 #endif // DUAL_MOTOR
 
     // Loop
     while (1)
     {
+#if CALIBRATION_MODE
+        if(motor1.motor_status == FOCMotorStatus::motor_uncalibrated && isGDInitFinished())
+        {
+            Serial.println("CALIBRATING MOTOR 1");
+            motor1.enable();
+            motor1.initFOC();
+            motor1.disable();
+        }
+#if DUAL_MOTOR
+        if(motor2.motor_status == FOCMotorStatus::motor_uncalibrated && isGDInitFinished())
+        {
+            Serial.println("CALIBRATING MOTOR 2");
+            motor2.enable();
+            motor2.initFOC();
+            motor2.disable();
+        }
+#endif // DUAL_MOTOR
+#else
         if(wasMotorButtonPressed())
         {
             in_speed_mode = !in_speed_mode;
@@ -262,7 +279,7 @@ static void TaskRollerMotor(void *pvParameters)
         motor1.current_limit = current_limit;
         motor1.PID_velocity.limit = motor1.current_limit;
         motor1.loopFOC();
-        motor1.move(speed_target);
+        motor1.move(-speed_target);
 
 #if DUAL_MOTOR
 		motor2.current_limit = current_limit;
@@ -270,7 +287,7 @@ static void TaskRollerMotor(void *pvParameters)
 		motor2.loopFOC();
 		motor2.move(speed_target);
 #endif // DUAL_MOTOR
-
+#endif // CALIBRATION_MODE
         vTaskDelay(xDelay);
     }
 }
