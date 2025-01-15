@@ -41,6 +41,7 @@ stateFunction_t stateFunction[STATE_COUNT] =
     [FAULT_STATE] = {.enterState = &enterFaultState, .runState = &runFaultState, .exitState = NULL},
 };
 
+uint8_t buttonCount = 0U;
 bool wasStateButtonPressed(){
     bool pressed = false;
     // handle overflow case
@@ -49,12 +50,29 @@ bool wasStateButtonPressed(){
         state_last_millis = millis();
     }
     bool currButton = digitalRead(STATE_BUTTON_PIN);
-    if(currButton == false && prevStateButton == true && (millis() - state_last_millis) > BUTTON_DEBOUNCE_MS)
+
+    // More robust button press detection to prevent false triggers
+    // Minimum button hold time of 3*200ms before releasing to trigger a press
+    if(currButton == false && buttonCount < 250U)
+    {
+        buttonCount++;
+    }
+    else if (currButton == true && buttonCount >=3U)
     {
         pressed = true;
-        state_last_millis = millis();
+        buttonCount = 0U;
     }
-    prevStateButton = currButton;
+    else
+    {
+        buttonCount = 0U;
+    }
+
+    // if(currButton == false && prevStateButton == true && (millis() - state_last_millis) > BUTTON_DEBOUNCE_MS)
+    // {
+    //     pressed = true;
+    //     state_last_millis = millis();
+    // }
+    // prevStateButton = currButton;
     return pressed;
 }
 
@@ -119,7 +137,6 @@ State_E runExtendedState(void)
 
 void enterRetractedState(State_E prev_state)
 {
-    setRollerMotorEnable(false);
     raiseRoller();
 }
 

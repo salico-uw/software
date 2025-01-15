@@ -9,7 +9,7 @@
 #define MONITOR_ANGLE_SPEED_LIMIT_COUNT 1U // cycles
 #define MONITOR_HIGH_CURRENT_LIMIT 6.0f // amps
 #define MONITOR_HIGH_CURRENT_TIMEOUT_MS 5000 // ms
-#define MONITOR_GD_UNHEALTHY_LIMIT 5U
+#define MONITOR_GD_UNHEALTHY_LIMIT 20U // 4s of unhealthy GD before tripping
 
 uint32_t high_current_count = 0U;
 uint32_t last_current_millis = 0U;
@@ -74,9 +74,9 @@ bool gateDriverMonitor()
             tripped = true;
         }        
     }
-    else if (gd_unhealthy_count > 0U)
+    else
     {
-        gd_unhealthy_count--;
+        gd_unhealthy_count = 0U;
     }
     return tripped;
 }
@@ -94,7 +94,7 @@ static void TaskMonitor(void *pvParameters)
         monitor_bits |= gateDriverMonitor() << 0U;
         if(getRollerMotorEnabled())
         {
-            monitor_bits |= angleMonitor(getRollerMotor1Speed(), getRollerMotor2Speed()) << 1U;
+            // monitor_bits |= angleMonitor(?getRollerMotor1Speed(), getRollerMotor2Speed()) << 1U;
             monitor_bits |= motorOverloadMonitor(getRollerMotor1Current(), getRollerMotor2Current()) << 2U;
         }
 
