@@ -1,7 +1,14 @@
 # Raspberry Pi Code
 
-## Setup
+## Setup (for a fresh pi OS boot)
 
+Install the following:
+```
+sudo apt-get update
+sudo apt-get install stlink-tools vim
+```
+
+Install autostart systemd scripts.
 
 ### Development
 
