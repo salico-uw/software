@@ -17,7 +17,7 @@
  * rotary encoder with pushbutton for mode control
  */
 
-#define TEST_MODE true
+#define TEST_MODE false
 
 void setup()
 {

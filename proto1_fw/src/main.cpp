@@ -3,8 +3,6 @@
 #include <SimpleFOC.h>
 #include <U8g2lib.h>
 
-#include "util.h"
-#include "display.h"
 #include "stateMachine.h"
 #include "rollerMotor.h"
 #include "monitor.h"
@@ -12,16 +10,11 @@
 #include "gateDriverSPI.h"
 
 // For RPI logging mocks.
-#define TEST_MODE false
+#define TEST_LOGGING_MODE false
 
-/* Using STMF401RE Nucleo with IHM08M1 motor sheild,
- * AS5047P SPI angle sensor
- * SSD1306 128x32 OLED I2C display
- * rotary encoder with pushbutton for mode control
- */
 void setup()
 {
-#if TEST_MODE
+#if TEST_LOGGING_MODE
 	Serial.begin(1000000);
 	pinMode(13, OUTPUT);
 #else
@@ -48,8 +41,7 @@ void setup()
 
 void loop()
 {
-#if TEST_MODE
-		
+#if TEST_LOGGING_MODE
 	int state = 1;
 	int mode = 2;
 	float speed = 1.2345;

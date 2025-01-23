@@ -13,12 +13,6 @@
 #error "L6398 has low side active low"
 #endif
 
-// Toggle for open loop for testing
-#define OPEN_LOOP true // Dont set when CALIBRATION_MODE == true
-#if OPEN_LOOP && CALIBRATION_MODE
-#error "Cannot calibrate in open loop mode"
-#endif
-
 #define SPEED_INCREMENT 1.0f // rad/s
 #define MAX_SPEED 200.0f // rad/s
 #define CURRENT_INCREMENT 0.5f // rad/s
@@ -217,7 +211,7 @@ static void TaskRollerMotor(void *pvParameters)
 #else
     // Determined once with initFOC calibration
     motor1.sensor_direction = Direction::CW;
-    motor1.zero_electric_angle = 5.24;
+    motor1.zero_electric_angle = 1.05;
 #endif // CALIBRATION_MODE
 
     motor1.KV_rating = MOTOR_KV;
@@ -241,7 +235,7 @@ static void TaskRollerMotor(void *pvParameters)
 #else
     // Determined once with initFOC calibration
     motor2.sensor_direction = Direction::CW;
-    motor2.zero_electric_angle = 5.24;
+    motor2.zero_electric_angle = 3.14;
 #endif // CALIBRATION_MODE
 
     motor2.KV_rating = MOTOR_KV;
@@ -396,13 +390,13 @@ float getRollerMotorSpeedTarget(void)
 
 float getRollerMotor1Current(void)
 {
-    return motor1.current.d + motor1.current.q;
+    return fabs(motor1.current.d) + fabs(motor1.current.q);
 }
 
 float getRollerMotor2Current(void)
 {
 #if DUAL_MOTOR
-    return motor2.current.d + motor2.current.q;
+    return fabs(motor2.current.d) + fabs(motor2.current.q);
 #elif
     return 0.0f;
 #endif // DUAL_MOTOR

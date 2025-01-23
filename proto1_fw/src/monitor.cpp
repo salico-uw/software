@@ -94,7 +94,9 @@ static void TaskMonitor(void *pvParameters)
         monitor_bits |= gateDriverMonitor() << 0U;
         if(getRollerMotorEnabled())
         {
-            // monitor_bits |= angleMonitor(?getRollerMotor1Speed(), getRollerMotor2Speed()) << 1U;
+#if !OPEN_LOOP
+            monitor_bits |= angleMonitor(getRollerMotor1Speed(), getRollerMotor2Speed()) << 1U; // Disable if not running closed loop
+#endif
             monitor_bits |= motorOverloadMonitor(getRollerMotor1Current(), getRollerMotor2Current()) << 2U;
         }
 

@@ -11,8 +11,6 @@
 #error "L6398 has low side active low"
 #endif
 
-// Toggle for open loop for testing
-#define OPEN_LOOP false // Dont set when CALIBRATION_MODE == true
 #if OPEN_LOOP && CALIBRATION_MODE
 #error "Cannot calibrate in open loop mode"
 #endif
