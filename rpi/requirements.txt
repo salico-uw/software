@@ -1,7 +1,5 @@
 RPi.GPIO
-apriltag
 opencv-python
-pupil-apriltags
 jupyterlab
 pyserial
 luma.oled
