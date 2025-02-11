@@ -1,7 +1,8 @@
 #include "gateDriverSPI.h"
 #include <SPI.h>
 
-#define DUAL_GD false
+#define DUAL_GD true
+#define DEBUG_SPI false
 
 #define TASK_PERIOD_MS 200U
 
@@ -9,6 +10,7 @@
 #define WRITE 0x00
 
 #define FAULT_STATUS_ADDR 0x0
+#define FAULT_STATUS2_ADDR 0x1
 #define DRIVER_CONTROL_ADDR 0x2
 #define GD_HS_ADDR 0x3
 #define GD_LOW_ADDR 0x4
@@ -17,18 +19,26 @@
 #define DATA_MASK 0b11111111111
 #define PWM3_CONFIG (0b01<<5U)
 
+#define GD_EN_PIN PC4
 #define NCS_PIN1 PD2
 #define NCS_PIN2 PA15
 SPIClass GD_SPI(PC12, PC11, PC10);
+bool initComplete = false;
 bool healthy = true;
 
 uint16_t transmitSPI(uint16_t mosi, uint8_t CS_PIN)
 {
-	// Serial.println(mosi, BIN);
 	digitalWrite(CS_PIN, LOW);
 	uint16_t rx_buffer = GD_SPI.transfer16(mosi) & DATA_MASK;
 	digitalWrite(CS_PIN, HIGH);
-	// Serial.println(rx_buffer, BIN);
+#if DEBUG_SPI
+    Serial.print("GD#");
+    Serial.print(int(CS_PIN == NCS_PIN1) + 1);
+    Serial.print(" MOSI: ");
+    Serial.print(mosi, BIN);
+    Serial.print(" MISO: ");
+	Serial.println(rx_buffer, BIN);
+#endif // DEBUG_SPI
     return rx_buffer;
 }
 
@@ -46,10 +56,14 @@ uint16_t readSPIRegister(uint8_t addr, uint8_t CS_PIN)
 
 void setupSPI(void)
 {
+    pinMode(GD_EN_PIN, OUTPUT);
     pinMode(NCS_PIN1, OUTPUT);
+    digitalWrite(GD_EN_PIN, HIGH);
+    delay(10); // IMPORTANT delay for GD chip to enable
 	digitalWrite(NCS_PIN1, HIGH);
-	GD_SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE1));
+	GD_SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE1));
     bool setupCorrect = true;
+    // Check for no faults
     setupCorrect &= readSPIRegister(FAULT_STATUS_ADDR, NCS_PIN1) == 0U;
     // Write 3PWM config to GD
     writeSPIRegister(DRIVER_CONTROL_ADDR, PWM3_CONFIG, NCS_PIN1);
@@ -67,7 +81,10 @@ void setupSPI(void)
     setupCorrect &= readSPIRegister(DRIVER_CONTROL_ADDR, NCS_PIN2) == PWM3_CONFIG;
 #endif // DUAL_GD
 
+    initComplete = true;
     healthy = setupCorrect;
+    Serial.print("GD Healthy: ");
+    Serial.println(healthy);
 }
 
 bool checkGDRegisters()
@@ -121,4 +138,9 @@ void initGateDriverSPITask(UBaseType_t priority)
 bool isGateDriverHealthy()
 {
     return healthy;
+}
+
+bool isGDInitFinished()
+{
+    return initComplete;
 }

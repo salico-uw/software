@@ -16,7 +16,12 @@ from PIL import ImageFont
 # substitute bitbang_6800(RS=7, E=8, PINS=[25,24,23,27]) below if using that interface
 i2c_serial = i2c(port=1, address=0x3C)
 
+<<<<<<< HEAD
 display = None
+=======
+# substitute ssd1331(...) or sh1106(...) below if using that device
+display = ssd1306(i2c_serial, width=128, height=32)
+>>>>>>> main
 
 DEVICE = '/dev/ttyACM0'
 BAUD = 1000000

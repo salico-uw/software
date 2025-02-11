@@ -1,5 +1,10 @@
 RPi.GPIO
+<<<<<<< HEAD
 apriltag
 opencv-python
 pupil-apriltags
 jupyterlab
+=======
+pyserial
+luma.oled
+>>>>>>> main

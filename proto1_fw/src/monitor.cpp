@@ -7,9 +7,9 @@
 
 #define MONITOR_ANGLE_SPEED_LIMIT 300.0f // rad/s
 #define MONITOR_ANGLE_SPEED_LIMIT_COUNT 1U // cycles
-#define MONITOR_HIGH_CURRENT_LIMIT 15.0f // amps
+#define MONITOR_HIGH_CURRENT_LIMIT 6.0f // amps
 #define MONITOR_HIGH_CURRENT_TIMEOUT_MS 5000 // ms
-#define MONITOR_GD_UNHEALTHY_LIMIT 4U
+#define MONITOR_GD_UNHEALTHY_LIMIT 20U // 4s of unhealthy GD before tripping
 
 uint32_t high_current_count = 0U;
 uint32_t last_current_millis = 0U;
@@ -18,11 +18,11 @@ uint8_t gd_unhealthy_count = 0U;
 uint16_t monitor_bits = 0U; // bitfield of monitor trips (1 is tripped)
 
 // Private functions
-bool angleMonitor(float motor_speed)
+bool angleMonitor(float motor_speed1, float motor_speed2)
 {
     bool tripped = false;
     // angle sensor speed monitor
-    if(fabs(motor_speed) > MONITOR_ANGLE_SPEED_LIMIT) {
+    if((fabs(motor_speed2) > MONITOR_ANGLE_SPEED_LIMIT) || (fabs(motor_speed2) > MONITOR_ANGLE_SPEED_LIMIT)) {
         if(angle_fault_count < MONITOR_ANGLE_SPEED_LIMIT_COUNT)
         {
             angle_fault_count++;
@@ -35,12 +35,12 @@ bool angleMonitor(float motor_speed)
     return tripped;
 }
 
-bool motorOverloadMonitor(float motor_current)
+bool motorOverloadMonitor(float motor_current1, float motor_current2)
 {
     bool tripped = false;
     // motor high current monitor, check every 1ms
     // Asymmetric counter to still trip when hovering around threshold
-    if(fabs(motor_current) >= MONITOR_HIGH_CURRENT_LIMIT)
+    if((fabs(motor_current1) >= MONITOR_HIGH_CURRENT_LIMIT) || (fabs(motor_current2) >= MONITOR_HIGH_CURRENT_LIMIT))
     {
         if(high_current_count < (MONITOR_HIGH_CURRENT_TIMEOUT_MS*2U))
         {
@@ -74,9 +74,9 @@ bool gateDriverMonitor()
             tripped = true;
         }        
     }
-    else if (gd_unhealthy_count > 0U)
+    else
     {
-        gd_unhealthy_count--;
+        gd_unhealthy_count = 0U;
     }
     return tripped;
 }
@@ -94,8 +94,10 @@ static void TaskMonitor(void *pvParameters)
         monitor_bits |= gateDriverMonitor() << 0U;
         if(getRollerMotorEnabled())
         {
-            monitor_bits |= angleMonitor(getRollerMotorSpeed()) << 1U;
-            monitor_bits |= motorOverloadMonitor(getRollerMotorCurrent()) << 2U;
+#if !OPEN_LOOP
+            monitor_bits |= angleMonitor(getRollerMotor1Speed(), getRollerMotor2Speed()) << 1U; // Disable if not running closed loop
+#endif
+            monitor_bits |= motorOverloadMonitor(getRollerMotor1Current(), getRollerMotor2Current()) << 2U;
         }
 
         vTaskDelay(xDelay);
