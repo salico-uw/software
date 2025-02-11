@@ -69,6 +69,7 @@ def write_buf():
 is_display_connected = False
 while True:
   if not display:
+    time.sleep(1)
     try:
       # substitute ssd1331(...) or sh1106(...) below if using that device
       display = ssd1306(i2c_serial, width=128, height=32)
@@ -78,7 +79,7 @@ while True:
       display = None
 
   if not os.path.exists(DEVICE) or not ser.isOpen():
-    time.sleep(2)
+    time.sleep(1)
     # try to reconnect after 2 seconds
     try:
       ser = serial.Serial(DEVICE, BAUD)
