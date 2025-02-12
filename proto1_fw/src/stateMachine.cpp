@@ -5,17 +5,17 @@
 #define TASK_PERIOD_MS 200U
 #define STATE_BUTTON_PIN PA5
 #define BUTTON_DEBOUNCE_MS (250U) // ms
+#define FAN_SPIN_TIME_MS (5000U) // ms
 
 #define SOLENOID_PIN PC9
-#define CONVEYOR_STEP_PIN PA1
-#define CONVEYOR_DIR_PIN PC1
-#define CONVEYOR_EN_PIN PC0
+#define FAN_EN_PIN PC0
 
 State_E state = OFF_STATE;
 State_E next_state = OFF_STATE;
 State_E prev_state = OFF_STATE;
 bool prevStateButton = true; // active low
 uint32_t state_last_millis = 0U;
+uint32_t fan_start_time_ms = 0U;
 
 typedef struct {
     void (*enterState)(State_E prev_state);
@@ -86,19 +86,14 @@ void raiseRoller(void)
     digitalWrite(SOLENOID_PIN, HIGH);
 }
 
-void spinConveyor(void)
+void spinFans(void)
 {
-    digitalWrite(CONVEYOR_EN_PIN, LOW);
-    digitalWrite(CONVEYOR_DIR_PIN, LOW);
-    analogWriteFrequency(500);
-    analogWrite(CONVEYOR_STEP_PIN, 127); // Duty cycle does not matter, speed based on pwm freq
-    analogWriteFrequency(PWM_FREQUENCY);
+    digitalWrite(FAN_EN_PIN, HIGH);
 }
 
-void stopConveyor(void)
+void stopFans(void)
 {
-    analogWrite(CONVEYOR_STEP_PIN, 0);
-    digitalWrite(CONVEYOR_EN_PIN, HIGH);
+    digitalWrite(FAN_EN_PIN, LOW);
 }
 
 State_E runOffState(void)
@@ -138,17 +133,24 @@ State_E runExtendedState(void)
 void enterRetractedState(State_E prev_state)
 {
     raiseRoller();
+    spinFans();
+    fan_start_time_ms = millis();
 }
 
 State_E runRetractedState(void)
 {
     State_E next = RETRACTED_STATE;
+    if((millis() - fan_start_time_ms) > FAN_SPIN_TIME_MS)
+    {
+        stopFans();
+    }
     if(getMonitorTripped())
     {
         next = FAULT_STATE;
     }
     else if(wasStateButtonPressed())
     {
+        stopFans();
         next = EXTENDED_STATE;
     }
     return next;
@@ -157,7 +159,7 @@ State_E runRetractedState(void)
 void enterFaultState(State_E prev_state)
 {
     setRollerMotorEnable(false);
-    stopConveyor();
+    stopFans();
     dropRoller();
     Serial.print("FAULTED bits: ");
     Serial.println(getMonitorTripBits(), BIN);
@@ -178,11 +180,9 @@ static void TaskStateMachine(void *pvParameters)
     // Setup
     pinMode(STATE_BUTTON_PIN, INPUT_PULLUP);
     pinMode(SOLENOID_PIN, OUTPUT);
-    pinMode(CONVEYOR_STEP_PIN, OUTPUT);
-    pinMode(CONVEYOR_DIR_PIN, OUTPUT);
-    pinMode(CONVEYOR_EN_PIN, OUTPUT);
+    pinMode(FAN_EN_PIN, OUTPUT);
     dropRoller();
-    stopConveyor();
+    stopFans();
 
     // Loop
     while (1)

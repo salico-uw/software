@@ -3,11 +3,13 @@
 #include "encoder.h"
 #include "monitor.h"
 #include "gateDriverSPI.h"
+#include "distanceSensor.h"
 
 // *****Adjustable defines*****
 #define TASK_PERIOD_MS 1U
 
 #define DUAL_MOTOR true // BOTH MOTORS MUST BE THE SAME
+#define SPEED_INCREASE_ENABLE false
 #define PWM_MODE 3 // For 3pwm make sure the pwms are tied together
 #if (SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH) == true && (PWM_MODE == 6)
 #error "L6398 has low side active low"
@@ -15,10 +17,13 @@
 
 #define SPEED_INCREMENT 1.0f // rad/s
 #define MAX_SPEED 200.0f // rad/s
+#define PISTON_SPEED_GAIN 1.0f
+#define MAX_SPEED_INCREASE 5.0f // rad/s
 #define CURRENT_INCREMENT 0.5f // rad/s
 #define MAX_CURRENT 7.0f // amps
 #define PWM_FREQ 15000U // Hz - Lower pwm freq (from 25kHz default) to reduce switching loss
 #define REVERSE_TIME_MS 10000U
+#define BASE_ROLLER_SPEED 22.0f // rad/s
 
 #define SUPPLY_VOLTAGE (24U)
 // Define specific motor we are using
@@ -210,7 +215,7 @@ static void TaskRollerMotor(void *pvParameters)
     motor1.voltage_limit = 0.7; // Set when running initFOC for CALIBRATION ONLY to be safe
 #else
     // Determined once with initFOC calibration
-    motor1.sensor_direction = Direction::CW;
+    motor1.sensor_direction = Direction::CCW;
     motor1.zero_electric_angle = 1.05;
 #endif // CALIBRATION_MODE
 
@@ -234,8 +239,8 @@ static void TaskRollerMotor(void *pvParameters)
     motor2.voltage_limit = 0.7; // Set when running initFOC for CALIBRATION ONLY to be safe
 #else
     // Determined once with initFOC calibration
-    motor2.sensor_direction = Direction::CW;
-    motor2.zero_electric_angle = 3.14;
+    motor2.sensor_direction = Direction::CCW;
+    motor2.zero_electric_angle = 1.05;
 #endif // CALIBRATION_MODE
 
     motor2.KV_rating = MOTOR_KV;
@@ -271,6 +276,15 @@ static void TaskRollerMotor(void *pvParameters)
         }
         commander.run();
         checkEncoder();
+
+#if SPEED_INCREASE_ENABLE
+        float speed_increase = PISTON_SPEED_GAIN * getDirectionalVelocity();
+        if(speed_increase > MAX_SPEED_INCREASE)
+        {
+            speed_increase = MAX_SPEED_INCREASE;
+        }
+        speed_target += speed_increase;
+#endif // SPEED_INCREASE_ENABLE
 
         float speed1 = -speed_target;
         float speed2 = speed_target;
@@ -364,7 +378,7 @@ float getRollerMotor2Angle(void)
 {
 #if DUAL_MOTOR
     return sensor2.getAngle();
-#elif
+#else
     return 0.0f;
 #endif // DUAL_MOTOR
 }
@@ -378,7 +392,7 @@ float getRollerMotor2Speed(void)
 {
 #if DUAL_MOTOR
     return motor2.shaft_velocity;
-#elif
+#else
     return 0.0f;
 #endif // DUAL_MOTOR
 }
@@ -397,7 +411,7 @@ float getRollerMotor2Current(void)
 {
 #if DUAL_MOTOR
     return fabs(motor2.current.d) + fabs(motor2.current.q);
-#elif
+#else
     return 0.0f;
 #endif // DUAL_MOTOR
 }

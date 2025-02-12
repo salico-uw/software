@@ -4,6 +4,7 @@
 #include "rollerMotor.h"
 #include "logger.h"
 #include "monitor.h"
+#include "distanceSensor.h"
 
 #define TASK_PERIOD_MS 200U
 
@@ -42,7 +43,9 @@ static void TaskLogger(void *pvParameters)
 		// Serial.print(",A2:"); // motor angle rad
 		// Serial.print(getRollerMotor2Angle());
 		Serial.print(",FB:"); // fault bits
-		Serial.println(getMonitorTripBits(), BIN);
+		Serial.print(getMonitorTripBits(), BIN);
+		Serial.print(",VEL:"); // piston extension speed
+		Serial.println(getDirectionalVelocity());
         vTaskDelay(xDelay);
     }
 }

@@ -8,9 +8,11 @@
 #include "monitor.h"
 #include "logger.h"
 #include "gateDriverSPI.h"
+#include "distanceSensor.h"
 
 // For RPI logging mocks.
 #define TEST_LOGGING_MODE false
+#define LOGGING_ENABLE true
 
 void setup()
 {
@@ -23,13 +25,14 @@ void setup()
 	Serial.print("Init RTOS with sysclock: ");
 	Serial.println(SystemCoreClock);
 
-#if !CALIBRATION_MODE
+#if !CALIBRATION_MODE && LOGGING_ENABLE
 	initLoggerTask(1);
 #endif // !CALIBRATION_MODE
 	initGateDriverSPITask(2);
 	initRollerMotorTask(3);
 	initStateMachineTask(2);
 	initMonitorTask(2);
+	initDistanceSensorTask(3);
 
 	Serial.println("Start RTOS");
 	

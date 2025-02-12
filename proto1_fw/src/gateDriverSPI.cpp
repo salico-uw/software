@@ -61,7 +61,7 @@ void setupSPI(void)
     digitalWrite(GD_EN_PIN, HIGH);
     delay(10); // IMPORTANT delay for GD chip to enable
 	digitalWrite(NCS_PIN1, HIGH);
-	GD_SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE1));
+	GD_SPI.beginTransaction(SPISettings(150000, MSBFIRST, SPI_MODE1));
     bool setupCorrect = true;
     // Check for no faults
     setupCorrect &= readSPIRegister(FAULT_STATUS_ADDR, NCS_PIN1) == 0U;
