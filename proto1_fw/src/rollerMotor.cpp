@@ -283,7 +283,8 @@ static void TaskRollerMotor(void *pvParameters)
         {
             speed_increase = MAX_SPEED_INCREASE;
         }
-        speed_target += speed_increase;
+        speed_increase += speed_target;
+        speed_target = speed_increase;
 #endif // SPEED_INCREASE_ENABLE
 
         float speed1 = -speed_target;
