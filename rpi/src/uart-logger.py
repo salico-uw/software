@@ -16,12 +16,7 @@ from PIL import ImageFont
 # substitute bitbang_6800(RS=7, E=8, PINS=[25,24,23,27]) below if using that interface
 i2c_serial = i2c(port=1, address=0x3C)
 
-<<<<<<< HEAD
 display = None
-=======
-# substitute ssd1331(...) or sh1106(...) below if using that device
-display = ssd1306(i2c_serial, width=128, height=32)
->>>>>>> main
 
 DEVICE = '/dev/ttyACM0'
 BAUD = 1000000
@@ -35,6 +30,8 @@ lines_buf = []
 # Number of lines to write to buffer before storing to disk
 n = 20
 
+IN_RANGE_PATH = "/home/salico/salico/am_i_in_range.txt"
+
 def write_display(logline):
   metrics_l = [x.split(":") for x in logline.split("//")[1].split(",")]
   if len(metrics_l) < 9:
@@ -46,15 +43,23 @@ def write_display(logline):
   strings.append(float(metrics["TW"] if is_speed_mode else metrics["CL"]))
   strings.append(float(metrics["W1"] if is_speed_mode else metrics["C1"]))
   strings.append(float(metrics["W2"] if is_speed_mode else metrics["C2"]))
+
+  in_range_symbol = "-"
+  try:
+    with open(IN_RANGE_PATH) as f:
+      in_range_symbol = f.read()[0]
+  except:
+    print("error reading in_range_path")
   
   font = ImageFont.truetype("DejaVuSans.ttf", 12)
   with canvas(display) as draw:
     draw.text((0, 0), f">{strings[0]:.2f}<", fill="white", font=font)
-    draw.text((70, 0), f"1:{strings[1]:.2f}", fill="white", font=font)
-    draw.text((70, 16), f"2:{strings[2]:.2f}", fill="white", font=font)
+    draw.text((75, 0), f"1:{strings[1]:.2f}", fill="white", font=font)
+    draw.text((75, 16), f"2:{strings[2]:.2f}", fill="white", font=font)
 
     draw.text((0, 16), f"{metrics['S']}", fill="white", font=font)
     draw.text((20, 16), f"{'Sp' if is_speed_mode else 'Cu'}", fill="white", font=font)
+    draw.text((40, 16), f"{in_range_symbol}", fill="white", font=font)
 
 def write_buf():
   global lines_buf
@@ -62,6 +67,7 @@ def write_buf():
     filename = datetime.now().strftime('%Y-%m-%d')
     print("Writing to file:")
     print(lines_buf[0])
+    
     with open(f"{OUT_DIR}/{filename}.txt", "a+") as f:
       f.write(''.join(lines_buf))
     lines_buf = []
@@ -100,6 +106,11 @@ while True:
       logline = f"{ctime}//{line.decode()}"
       if display:
         write_display(logline)
+        with canvas(display) as draw:
+          with open(IN_RANGE_PATH) as f:
+            in_range_symbol = f.read()[0]
+            draw.text((40, 16), f"{in_range_symbol}", fill="white", font=font)
+          
       print(logline, end="")
       lines_buf.append(logline)
       write_buf()
