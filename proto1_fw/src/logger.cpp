@@ -45,7 +45,10 @@ static void TaskLogger(void *pvParameters)
 		Serial.print(",FB:"); // fault bits
 		Serial.print(getMonitorTripBits(), BIN);
 		Serial.print(",VEL:"); // piston extension speed
-		Serial.println(getDirectionalVelocity());
+		Serial.print(getDirectionalVelocity());
+		Serial.print(",DIST:"); // piston extension dist
+		Serial.println(getDistanceMM());
+		
         vTaskDelay(xDelay);
     }
 }

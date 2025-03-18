@@ -4,14 +4,14 @@
 #include <Wire.h>
 #include <VL53L0X.h>
 
-#define TASK_PERIOD_MS 50U
+#define TASK_PERIOD_MS 200U
 
 #define MAX_VALID_RANGE_MM 300U
 
-VL53L0X sensor;
-uint16_t distance_mm = 0U;
-uint16_t prev_distance_mm = 0U;
-float velocity = 0.0f;
+static VL53L0X sensor;
+static uint16_t distance_mm = 0U;
+static uint16_t prev_distance_mm = 0U;
+static float velocity = 0.0f;
 
 static void TaskDistanceSensor(void *pvParameters)
 {
@@ -25,8 +25,7 @@ static void TaskDistanceSensor(void *pvParameters)
     sensor.setTimeout(500);
     if (!sensor.init())
     {
-        Serial.println("Failed to detect and initialize sensor!");
-        while (1) {}
+        Serial.println("Failed to detect and initialize distance sensor!");
     }
 
     sensor.startContinuous();
@@ -102,7 +101,7 @@ float getDirectionalVelocity()
     return vel;
 }
 
-bool getSensorTimeout()
+bool getDistanceSensorHealthy()
 {
-    return sensor.timeoutOccurred();
+    return sensor.init() && !sensor.timeoutOccurred();
 }

@@ -5,7 +5,7 @@
 
 void initDistanceSensorTask(UBaseType_t priority);
 uint16_t getDistanceMM();
-bool getSensorTimeout();
+bool getDistanceSensorHealthy();
 float getPositiveVelocity();
 float getNegativeVelocity();
 float getDirectionalVelocity();

@@ -9,7 +9,7 @@
 #define MONITOR_ANGLE_SPEED_LIMIT_COUNT 1U // cycles
 #define MONITOR_HIGH_CURRENT_LIMIT 6.0f // amps
 #define MONITOR_HIGH_CURRENT_TIMEOUT_MS 5000 // ms
-#define MONITOR_GD_UNHEALTHY_LIMIT 20U // 4s of unhealthy GD before tripping
+#define MONITOR_GD_UNHEALTHY_LIMIT 5U // 1s of unhealthy GD before tripping
 
 uint32_t high_current_count = 0U;
 uint32_t last_current_millis = 0U;

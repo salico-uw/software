@@ -22,7 +22,9 @@
 #define CURRENT_INCREMENT 0.5f // rad/s
 #define MAX_CURRENT 7.0f // amps
 #define PWM_FREQ 15000U // Hz - Lower pwm freq (from 25kHz default) to reduce switching loss
-#define REVERSE_TIME_MS 10000U
+#define PISTON_RISE_TIME 3000U
+#define REVERSE_ROLL_TIME 10000U
+
 #define BASE_ROLLER_SPEED 22.0f // rad/s
 
 #define SUPPLY_VOLTAGE (24U)
@@ -68,6 +70,13 @@
 #define WH1 PA10
 #define WH2 PB1
 
+#define HALL1_A PB13
+#define HALL1_B PB14
+#define HALL1_C PB15
+#define HALL2_A PB4
+#define HALL2_B PB5
+#define HALL2_C PB6
+
 bool prevMotorButton = true; // active low
 uint32_t motor_last_millis = 0U;
 
@@ -83,8 +92,8 @@ BLDCMotor motor1 = BLDCMotor(MOTOR_POLE_PAIRS, MOTOR_PHASE_RESISTANCE);
 BLDCMotor motor2 = BLDCMotor(MOTOR_POLE_PAIRS, MOTOR_PHASE_RESISTANCE);
 #endif // CALIBRATION_MODE
 
-HallSensor sensor1 = HallSensor(PB3, PB4, PB5, MOTOR_POLE_PAIRS);
-HallSensor sensor2 = HallSensor(PB13, PB14, PB15, MOTOR_POLE_PAIRS);
+HallSensor sensor1 = HallSensor(HALL1_A, HALL1_B, HALL1_C, MOTOR_POLE_PAIRS);
+HallSensor sensor2 = HallSensor(HALL2_A, HALL2_B, HALL2_C, MOTOR_POLE_PAIRS);
 
 Commander commander = Commander(Serial);
 void onMotor1(char* cmd){ commander.motor(&motor1,cmd); }
@@ -92,7 +101,7 @@ void onMotor2(char* cmd){ commander.motor(&motor2,cmd); }
 
 bool in_speed_mode = true; // Start in speed mode, alternate between current mode on button press
 double speed_target = 0.0f; // rad/s
-double current_limit = 2.0f; // amps
+double current_limit = 4.5f; // amps
 uint16_t reverse_spin_count = 0U;
 
 bool wasMotorButtonPressed(){
@@ -199,6 +208,7 @@ static void TaskRollerMotor(void *pvParameters)
 #else
 	motor1.controller = MotionControlType::velocity_openloop;
     motor2.controller = MotionControlType::velocity_openloop;
+    current_limit = 1.0f; // start with lower open loop current
 #endif // OPEN_LOOP == false
 
 	// Motor 1
@@ -293,11 +303,17 @@ static void TaskRollerMotor(void *pvParameters)
         // Spin motors in opposite directions when retracting (with timeout)
         if(getState() == RETRACTED_STATE)
         {
-            if(reverse_spin_count < REVERSE_TIME_MS / TASK_PERIOD_MS)
+            if(reverse_spin_count < PISTON_RISE_TIME / TASK_PERIOD_MS)
             {
                 reverse_spin_count++;
-                speed1 = -speed1;
-                speed2 = -speed2;
+                speed1 = 0U;
+                speed2 = 0U;
+            }
+            else if(reverse_spin_count < (PISTON_RISE_TIME+REVERSE_ROLL_TIME) / TASK_PERIOD_MS)
+            {
+                reverse_spin_count++;
+                speed1 *= 1.1;
+                speed2 *= 1.1;
             }
             else
             {

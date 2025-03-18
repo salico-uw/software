@@ -16,11 +16,10 @@
 
 void setup()
 {
+	Serial.begin(115200);
 #if TEST_LOGGING_MODE
-	Serial.begin(1000000);
 	pinMode(13, OUTPUT);
 #else
-	Serial.begin(1000000);
 	while (!Serial) {}
 	Serial.print("Init RTOS with sysclock: ");
 	Serial.println(SystemCoreClock);
@@ -32,7 +31,7 @@ void setup()
 	initRollerMotorTask(3);
 	initStateMachineTask(2);
 	initMonitorTask(2);
-	initDistanceSensorTask(3);
+	initDistanceSensorTask(2);
 
 	Serial.println("Start RTOS");
 	

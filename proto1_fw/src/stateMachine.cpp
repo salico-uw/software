@@ -1,21 +1,25 @@
 #include "stateMachine.h"
 #include "monitor.h"
 #include "rollerMotor.h"
+#include "distanceSensor.h"
 
 #define TASK_PERIOD_MS 200U
 #define STATE_BUTTON_PIN PA5
 #define BUTTON_DEBOUNCE_MS (250U) // ms
-#define FAN_SPIN_TIME_MS (5000U) // ms
+#define FAN_SPIN_TIME_MS (15000U) // ms
+#define NUMBER_OF_DISTANCE_INTERVALS (3U)
 
 #define SOLENOID_PIN PC9
 #define FAN_EN_PIN PC0
 
-State_E state = OFF_STATE;
-State_E next_state = OFF_STATE;
-State_E prev_state = OFF_STATE;
-bool prevStateButton = true; // active low
-uint32_t state_last_millis = 0U;
-uint32_t fan_start_time_ms = 0U;
+static State_E state = OFF_STATE;
+static State_E next_state = OFF_STATE;
+static State_E prev_state = OFF_STATE;
+static bool prevStateButton = true; // active low
+static uint32_t state_last_millis = 0U;
+static uint32_t fan_start_time_ms = 0U;
+static const float picking_dist_intervals[NUMBER_OF_DISTANCE_INTERVALS] = {20, 30, 40};
+static uint8_t curr_dist_limit_idx = 0U;
 
 typedef struct {
     void (*enterState)(State_E prev_state);
@@ -57,7 +61,7 @@ bool wasStateButtonPressed(){
     {
         buttonCount++;
     }
-    else if (currButton == true && buttonCount >=3U)
+    else if (currButton == true && buttonCount >= 3U)
     {
         pressed = true;
         buttonCount = 0U;
@@ -123,8 +127,14 @@ State_E runExtendedState(void)
     {
         next = FAULT_STATE;
     }
+    // else if (!getSensorTimeout() && (getDistanceMM() > picking_dist_intervals[curr_dist_limit_idx]))
+    // {
+    //     curr_dist_limit_idx++;
+    //     next = RETRACTED_STATE;
+    // }
     else if(wasStateButtonPressed())
     {
+        // If defaulting back to button-triggered raising, don't do auto-drop sequence
         next = RETRACTED_STATE;
     }
     return next;
@@ -143,6 +153,11 @@ State_E runRetractedState(void)
     if((millis() - fan_start_time_ms) > FAN_SPIN_TIME_MS)
     {
         stopFans();
+        // if dist sensor working and auto-drop sequence is not complete, keep dropping
+        if(getDistanceSensorHealthy() && (curr_dist_limit_idx < NUMBER_OF_DISTANCE_INTERVALS))
+        {
+            next = EXTENDED_STATE;
+        }
     }
     if(getMonitorTripped())
     {
@@ -150,7 +165,9 @@ State_E runRetractedState(void)
     }
     else if(wasStateButtonPressed())
     {
+        // Stop fans and reset distance limit index to start a new picking sequence
         stopFans();
+        curr_dist_limit_idx = 0U;
         next = EXTENDED_STATE;
     }
     return next;
