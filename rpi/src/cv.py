@@ -46,13 +46,13 @@ while True:
     print(y_coords[0], y_coords[-1])
     # are we within the limit?
     if Y_LOWER_LIMIT > y_coords[0]:
-      output_char = "↑"
+      output_char = "+"
       print("Move Forward")
     elif Y_UPPER_LIMIT < y_coords[-1]:
-      output_char = "↓"
+      output_char = "-"
       print("Move Backwards")
     else:
-      output_char = "-"
+      output_char = "0"
       print("In range")
      
   with open(OUTPUT_PATH, "w") as f:
