@@ -154,10 +154,10 @@ State_E runRetractedState(void)
     {
         stopFans();
         // if dist sensor working and auto-drop sequence is not complete, keep dropping
-        if(getDistanceSensorHealthy() && (curr_dist_limit_idx < NUMBER_OF_DISTANCE_INTERVALS))
-        {
-            next = EXTENDED_STATE;
-        }
+        // if(getDistanceSensorHealthy() && (curr_dist_limit_idx < NUMBER_OF_DISTANCE_INTERVALS))
+        // {
+        //     next = EXTENDED_STATE;
+        // }
     }
     if(getMonitorTripped())
     {
@@ -193,7 +193,7 @@ static void TaskStateMachine(void *pvParameters)
 {
     (void) pvParameters;
 
-    const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
+const TickType_t xDelay = TASK_PERIOD_MS / portTICK_PERIOD_MS;
     // Setup
     pinMode(STATE_BUTTON_PIN, INPUT_PULLUP);
     pinMode(SOLENOID_PIN, OUTPUT);

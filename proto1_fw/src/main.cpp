@@ -16,7 +16,7 @@
 
 void setup()
 {
-	Serial.begin(115200);
+	Serial.begin(1000000);
 #if TEST_LOGGING_MODE
 	pinMode(13, OUTPUT);
 #else

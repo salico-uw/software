@@ -46,7 +46,7 @@ static void TaskDistanceSensor(void *pvParameters)
         // Serial.println(velocity);
         prev_distance_mm = distance_mm;
 
-        if (sensor.timeoutOccurred()) { Serial.print("Distance Sensor TIMEOUT"); }
+        // if (sensor.timeoutOccurred()) { Serial.print("Distance Sensor TIMEOUT"); }
         vTaskDelay(xDelay);
     }
 }

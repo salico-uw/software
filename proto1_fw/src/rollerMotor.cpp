@@ -63,6 +63,7 @@
 #define BUTTON_DEBOUNCE_MS (250U) // ms
 #define MOTOR_BUTTON_PIN PC5
 
+// 1 is RIGHT and 2 is LEFT
 #define UH1 PA8
 #define UH2 PA7
 #define VH1 PA9
@@ -226,7 +227,7 @@ static void TaskRollerMotor(void *pvParameters)
 #else
     // Determined once with initFOC calibration
     motor1.sensor_direction = Direction::CCW;
-    motor1.zero_electric_angle = 1.05;
+    motor1.zero_electric_angle = 5.24;
 #endif // CALIBRATION_MODE
 
     motor1.KV_rating = MOTOR_KV;
@@ -249,7 +250,7 @@ static void TaskRollerMotor(void *pvParameters)
     motor2.voltage_limit = 0.7; // Set when running initFOC for CALIBRATION ONLY to be safe
 #else
     // Determined once with initFOC calibration
-    motor2.sensor_direction = Direction::CCW;
+    motor2.sensor_direction = Direction::CW;
     motor2.zero_electric_angle = 1.05;
 #endif // CALIBRATION_MODE
 
@@ -306,11 +307,13 @@ static void TaskRollerMotor(void *pvParameters)
             if(reverse_spin_count < PISTON_RISE_TIME / TASK_PERIOD_MS)
             {
                 reverse_spin_count++;
+                // setRollerMotorEnable(false);
                 speed1 = 0U;
                 speed2 = 0U;
             }
             else if(reverse_spin_count < (PISTON_RISE_TIME+REVERSE_ROLL_TIME) / TASK_PERIOD_MS)
             {
+                // setRollerMotorEnable(true);
                 reverse_spin_count++;
                 speed1 *= 1.1;
                 speed2 *= 1.1;
