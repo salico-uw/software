@@ -44,22 +44,25 @@ def write_display(logline):
   strings.append(float(metrics["W1"] if is_speed_mode else metrics["C1"]))
   strings.append(float(metrics["W2"] if is_speed_mode else metrics["C2"]))
 
-  in_range_symbol = "-"
+  in_range_text = ""
   try:
     with open(IN_RANGE_PATH) as f:
-      in_range_symbol = f.read()[0]
+      a = f.read()[0]
+      if a == "0":
+        in_range_text = "ALIGNED"
   except:
     print("error reading in_range_path")
   
   font = ImageFont.truetype("DejaVuSans.ttf", 12)
+  big_font = ImageFont.truetype("DejaVuSans.ttf", 24)
   with canvas(display) as draw:
     draw.text((0, 0), f">{strings[0]:.2f}<", fill="white", font=font)
-    draw.text((75, 0), f"1:{strings[1]:.2f}", fill="white", font=font)
-    draw.text((75, 16), f"2:{strings[2]:.2f}", fill="white", font=font)
+    # draw.text((75, 0), f"1:{strings[1]:.2f}", fill="white", font=font)
+    # draw.text((75, 16), f"2:{strings[2]:.2f}", fill="white", font=font)
 
     draw.text((0, 16), f"{metrics['S']}", fill="white", font=font)
     draw.text((20, 16), f"{'Sp' if is_speed_mode else 'Cu'}", fill="white", font=font)
-    draw.text((40, 16), f"{in_range_symbol}", fill="white", font=font)
+    draw.text((60, 0), f"{in_range_text}", fill="white", font=font)
 
 def write_buf():
   global lines_buf
