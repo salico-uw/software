@@ -106,10 +106,6 @@ while True:
       logline = f"{ctime}//{line.decode()}"
       if display:
         write_display(logline)
-        with canvas(display) as draw:
-          with open(IN_RANGE_PATH) as f:
-            in_range_symbol = f.read()[0]
-            draw.text((40, 16), f"{in_range_symbol}", fill="white", font=font)
           
       print(logline, end="")
       lines_buf.append(logline)
