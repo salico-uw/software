@@ -18,7 +18,7 @@ i2c_serial = i2c(port=1, address=0x3C)
 
 display = None
 
-DEVICE = '/dev/ttyACM0'
+DEVICE = '/dev/ttyUSB0'
 BAUD = 1000000
 OUT_DIR = '/home/salico/salico/log'
 
@@ -48,21 +48,54 @@ def write_display(logline):
   try:
     with open(IN_RANGE_PATH) as f:
       a = f.read()[0]
-      if a == "0":
-        in_range_text = "ALIGNED"
+      char_mapping = {
+        "1": ":)",
+        "+": "↑↑↑" ,
+        "-": "↓↓↓",
+        "0": "-"
+      }
+
+      in_range_text = char_mapping.get(a)
   except:
     print("error reading in_range_path")
   
-  font = ImageFont.truetype("DejaVuSans.ttf", 12)
-  big_font = ImageFont.truetype("DejaVuSans.ttf", 24)
+  montserrat_path = "/home/salico/salico/software/rpi/montserrat/static/Montserrat-Bold.ttf"
+  font = ImageFont.truetype(montserrat_path, 12)
+  big_font = ImageFont.truetype(montserrat_path, 24)
+  bigger_font = ImageFont.truetype(montserrat_path, 30)
   with canvas(display) as draw:
-    draw.text((0, 0), f">{strings[0]:.2f}<", fill="white", font=font)
+    state = int(metrics['S'])
+    
+    state_map = [
+      "OFF", # 0
+      "IDL", # 1 
+      "DOWN", # 2 
+      "UP", # 3
+      "ROLL", # 4
+      "FLT" # 5
+    ]
+    
+    state_text = state_map[state]
+    
+    draw.text((0, 0), state_text, fill="white", font=big_font)
+
+    if state == 0 or state == 1:
+      draw.text((85, 0), in_range_text, fill="white", font=big_font)
+      # pass
+    elif state >= 2 and state <= 4:
+      draw.text((85, 0), f"1:{float(metrics['W1']):.1f}", fill="white", font=font)
+      draw.text((85, 16), f"2:{float(metrics['W2']):.1f}", fill="white", font=font)
+    elif state == 5:
+      draw.text((85, 16), metrics["FB"], fill="white", font=font)
+      pass
+
+    # draw.text((0, 0), f">{strings[0]:.2f}<", fill="white", font=font)
     # draw.text((75, 0), f"1:{strings[1]:.2f}", fill="white", font=font)
     # draw.text((75, 16), f"2:{strings[2]:.2f}", fill="white", font=font)
 
-    draw.text((0, 16), f"{metrics['S']}", fill="white", font=font)
-    draw.text((20, 16), f"{'Sp' if is_speed_mode else 'Cu'}", fill="white", font=font)
-    draw.text((60, 0), f"{in_range_text}", fill="white", font=font)
+    # draw.text((0, 16), f"{metrics['S']}", fill="white", font=font) # state
+    # draw.text((20, 16), f"{'Sp' if is_speed_mode else 'Cu'}", fill="white", font=font)
+    # draw.text((60, 0), f"{in_range_text}", fill="white", font=font)
 
 def write_buf():
   global lines_buf

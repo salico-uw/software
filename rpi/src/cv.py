@@ -24,8 +24,8 @@ arucoParams.adaptiveThreshWinSizeStep = 1
 
 # Corners are outputted in order: bottom right, bottom left, top left, top right
 
-Y_UPPER_LIMIT = 300
-Y_LOWER_LIMIT = 60
+Y_UPPER_LIMIT = 310
+Y_LOWER_LIMIT = 250
 
 OUTPUT_PATH = "/home/salico/salico/am_i_in_range.txt"
 
@@ -41,21 +41,43 @@ while True:
   if len(coords) == 0:
     print("No marker found.")
   else:
-    y_coords = sorted([corner[1] for corner in coords[0][0]])
-    # min, max
-    print(y_coords[0], y_coords[-1])
+    # print(coords)
+    # [-1][-1] gets the last 
+    y_coords = sorted([corner[1] for corner in coords[-1][-1]])
+
+    y_low = (y_coords[0] + y_coords[1]) / 2
+    y_high = (y_coords[2] + y_coords[3]) / 2
+
+    print(y_low, y_high)
+    # print(y_coords)
     # are we within the limit?
-    if Y_LOWER_LIMIT > y_coords[0]:
+    if y_low < Y_UPPER_LIMIT and y_low > Y_LOWER_LIMIT and y_high < Y_UPPER_LIMIT and y_high > Y_LOWER_LIMIT:
+      output_char = "1"
+      print("In range")
+      
+    elif y_low <= Y_LOWER_LIMIT and y_high <= Y_UPPER_LIMIT and y_high >= Y_LOWER_LIMIT:
       output_char = "+"
       print("Move Forward")
-    elif Y_UPPER_LIMIT < y_coords[-1]:
+
+    elif y_high >= Y_UPPER_LIMIT and y_low <= Y_UPPER_LIMIT and y_low >= Y_LOWER_LIMIT:
       output_char = "-"
       print("Move Backwards")
+    
     else:
       output_char = "0"
-      print("In range")
+      print("Tags detected, but none within bounds")
+      
+    # if y_coords[1] < Y_LOWER_LIMIT and Y:
+    #   output_char = "+"
+    #   print("Move Forward")
+    # elif y_coords[-1] > Y_UPPER_LIMIT and:
+    #   output_char = "-"
+    #   print("Move Backwards")
+    # elif :
+    #   output_char = "1"
+    #   print("In range")
      
   with open(OUTPUT_PATH, "w") as f:
     f.write(output_char)
 
-  time.sleep(1)
+  time.sleep(0.2)
