@@ -1,3 +1,5 @@
 RPi.GPIO
+opencv-python
+jupyterlab
 pyserial
 luma.oled
