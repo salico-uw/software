@@ -22,8 +22,6 @@
 #define CURRENT_INCREMENT 0.5f // rad/s
 #define MAX_CURRENT 7.0f // amps
 #define PWM_FREQ 15000U // Hz - Lower pwm freq (from 25kHz default) to reduce switching loss
-#define PISTON_RISE_TIME 3000U
-#define REVERSE_ROLL_TIME 10000U
 
 #define BASE_ROLLER_SPEED 22.0f // rad/s
 
@@ -101,7 +99,7 @@ void onMotor1(char* cmd){ commander.motor(&motor1,cmd); }
 void onMotor2(char* cmd){ commander.motor(&motor2,cmd); }
 
 bool in_speed_mode = true; // Start in speed mode, alternate between current mode on button press
-double speed_target = 0.0f; // rad/s
+double speed_target = -45.0f; // rad/s
 double current_limit = 4.5f; // amps
 uint16_t reverse_spin_count = 0U;
 
@@ -300,34 +298,6 @@ static void TaskRollerMotor(void *pvParameters)
 
         float speed1 = -speed_target;
         float speed2 = speed_target;
-
-        // Spin motors in opposite directions when retracting (with timeout)
-        if(getState() == RETRACTED_STATE)
-        {
-            if(reverse_spin_count < PISTON_RISE_TIME / TASK_PERIOD_MS)
-            {
-                reverse_spin_count++;
-                // setRollerMotorEnable(false);
-                speed1 = 0U;
-                speed2 = 0U;
-            }
-            else if(reverse_spin_count < (PISTON_RISE_TIME+REVERSE_ROLL_TIME) / TASK_PERIOD_MS)
-            {
-                // setRollerMotorEnable(true);
-                reverse_spin_count++;
-                speed1 *= 1.1;
-                speed2 *= 1.1;
-            }
-            else
-            {
-                // Disable motors
-                setRollerMotorEnable(false);
-            }
-        }
-        else
-        {
-            reverse_spin_count = 0U;
-        }
 
         motor1.current_limit = current_limit;
         motor1.PID_velocity.limit = motor1.current_limit;

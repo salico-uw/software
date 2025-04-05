@@ -44,9 +44,11 @@ static void TaskLogger(void *pvParameters)
 		// Serial.print(getRollerMotor2Angle());
 		Serial.print(",FB:"); // fault bits
 		Serial.print(getMonitorTripBits(), BIN);
-		Serial.print(",VEL:"); // piston extension speed
+		Serial.print(",HLT:"); // distance senssor health
+		Serial.print(getDistanceSensorHealthy());
+		Serial.print(",V:"); // piston extension speed
 		Serial.print(getDirectionalVelocity());
-		Serial.print(",DIST:"); // piston extension dist
+		Serial.print(",D:"); // piston extension dist
 		Serial.println(getDistanceMM());
 		
         vTaskDelay(xDelay);
