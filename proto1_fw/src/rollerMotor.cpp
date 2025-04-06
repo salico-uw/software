@@ -3,11 +3,13 @@
 #include "encoder.h"
 #include "monitor.h"
 #include "gateDriverSPI.h"
+#include "distanceSensor.h"
 
 // *****Adjustable defines*****
 #define TASK_PERIOD_MS 1U
 
 #define DUAL_MOTOR true // BOTH MOTORS MUST BE THE SAME
+#define SPEED_INCREASE_ENABLE false
 #define PWM_MODE 3 // For 3pwm make sure the pwms are tied together
 #if (SIMPLEFOC_PWM_LOWSIDE_ACTIVE_HIGH) == true && (PWM_MODE == 6)
 #error "L6398 has low side active low"
@@ -15,10 +17,13 @@
 
 #define SPEED_INCREMENT 1.0f // rad/s
 #define MAX_SPEED 200.0f // rad/s
+#define PISTON_SPEED_GAIN 1.0f
+#define MAX_SPEED_INCREASE 5.0f // rad/s
 #define CURRENT_INCREMENT 0.5f // rad/s
 #define MAX_CURRENT 7.0f // amps
 #define PWM_FREQ 15000U // Hz - Lower pwm freq (from 25kHz default) to reduce switching loss
-#define REVERSE_TIME_MS 10000U
+
+#define BASE_ROLLER_SPEED 22.0f // rad/s
 
 #define SUPPLY_VOLTAGE (24U)
 // Define specific motor we are using
@@ -56,12 +61,20 @@
 #define BUTTON_DEBOUNCE_MS (250U) // ms
 #define MOTOR_BUTTON_PIN PC5
 
+// 1 is RIGHT and 2 is LEFT
 #define UH1 PA8
 #define UH2 PA7
 #define VH1 PA9
 #define VH2 PB0
 #define WH1 PA10
 #define WH2 PB1
+
+#define HALL1_A PB13
+#define HALL1_B PB14
+#define HALL1_C PB15
+#define HALL2_A PB4
+#define HALL2_B PB5
+#define HALL2_C PB6
 
 bool prevMotorButton = true; // active low
 uint32_t motor_last_millis = 0U;
@@ -78,16 +91,16 @@ BLDCMotor motor1 = BLDCMotor(MOTOR_POLE_PAIRS, MOTOR_PHASE_RESISTANCE);
 BLDCMotor motor2 = BLDCMotor(MOTOR_POLE_PAIRS, MOTOR_PHASE_RESISTANCE);
 #endif // CALIBRATION_MODE
 
-HallSensor sensor1 = HallSensor(PB3, PB4, PB5, MOTOR_POLE_PAIRS);
-HallSensor sensor2 = HallSensor(PB13, PB14, PB15, MOTOR_POLE_PAIRS);
+HallSensor sensor1 = HallSensor(HALL1_A, HALL1_B, HALL1_C, MOTOR_POLE_PAIRS);
+HallSensor sensor2 = HallSensor(HALL2_A, HALL2_B, HALL2_C, MOTOR_POLE_PAIRS);
 
 Commander commander = Commander(Serial);
 void onMotor1(char* cmd){ commander.motor(&motor1,cmd); }
 void onMotor2(char* cmd){ commander.motor(&motor2,cmd); }
 
 bool in_speed_mode = true; // Start in speed mode, alternate between current mode on button press
-double speed_target = 0.0f; // rad/s
-double current_limit = 2.0f; // amps
+double speed_target = -45.0f; // rad/s
+double current_limit = 4.5f; // amps
 uint16_t reverse_spin_count = 0U;
 
 bool wasMotorButtonPressed(){
@@ -194,6 +207,7 @@ static void TaskRollerMotor(void *pvParameters)
 #else
 	motor1.controller = MotionControlType::velocity_openloop;
     motor2.controller = MotionControlType::velocity_openloop;
+    current_limit = 1.0f; // start with lower open loop current
 #endif // OPEN_LOOP == false
 
 	// Motor 1
@@ -210,8 +224,8 @@ static void TaskRollerMotor(void *pvParameters)
     motor1.voltage_limit = 0.7; // Set when running initFOC for CALIBRATION ONLY to be safe
 #else
     // Determined once with initFOC calibration
-    motor1.sensor_direction = Direction::CW;
-    motor1.zero_electric_angle = 1.05;
+    motor1.sensor_direction = Direction::CCW;
+    motor1.zero_electric_angle = 5.24;
 #endif // CALIBRATION_MODE
 
     motor1.KV_rating = MOTOR_KV;
@@ -235,7 +249,7 @@ static void TaskRollerMotor(void *pvParameters)
 #else
     // Determined once with initFOC calibration
     motor2.sensor_direction = Direction::CW;
-    motor2.zero_electric_angle = 3.14;
+    motor2.zero_electric_angle = 1.05;
 #endif // CALIBRATION_MODE
 
     motor2.KV_rating = MOTOR_KV;
@@ -272,28 +286,18 @@ static void TaskRollerMotor(void *pvParameters)
         commander.run();
         checkEncoder();
 
+#if SPEED_INCREASE_ENABLE
+        float speed_increase = PISTON_SPEED_GAIN * getDirectionalVelocity();
+        if(speed_increase > MAX_SPEED_INCREASE)
+        {
+            speed_increase = MAX_SPEED_INCREASE;
+        }
+        speed_increase += speed_target;
+        speed_target = speed_increase;
+#endif // SPEED_INCREASE_ENABLE
+
         float speed1 = -speed_target;
         float speed2 = speed_target;
-
-        // Spin motors in opposite directions when retracting (with timeout)
-        if(getState() == RETRACTED_STATE)
-        {
-            if(reverse_spin_count < REVERSE_TIME_MS / TASK_PERIOD_MS)
-            {
-                reverse_spin_count++;
-                speed1 = -speed1;
-                speed2 = -speed2;
-            }
-            else
-            {
-                // Disable motors
-                setRollerMotorEnable(false);
-            }
-        }
-        else
-        {
-            reverse_spin_count = 0U;
-        }
 
         motor1.current_limit = current_limit;
         motor1.PID_velocity.limit = motor1.current_limit;
@@ -364,7 +368,7 @@ float getRollerMotor2Angle(void)
 {
 #if DUAL_MOTOR
     return sensor2.getAngle();
-#elif
+#else
     return 0.0f;
 #endif // DUAL_MOTOR
 }
@@ -378,7 +382,7 @@ float getRollerMotor2Speed(void)
 {
 #if DUAL_MOTOR
     return motor2.shaft_velocity;
-#elif
+#else
     return 0.0f;
 #endif // DUAL_MOTOR
 }
@@ -397,7 +401,7 @@ float getRollerMotor2Current(void)
 {
 #if DUAL_MOTOR
     return fabs(motor2.current.d) + fabs(motor2.current.q);
-#elif
+#else
     return 0.0f;
 #endif // DUAL_MOTOR
 }

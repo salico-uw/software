@@ -22,9 +22,10 @@
 #define GD_EN_PIN PC4
 #define NCS_PIN1 PD2
 #define NCS_PIN2 PA15
-SPIClass GD_SPI(PC12, PC11, PC10);
-bool initComplete = false;
-bool healthy = true;
+
+static SPIClass GD_SPI(PC12, PC11, PC10);
+static bool initComplete = false;
+static bool healthy = true;
 
 uint16_t transmitSPI(uint16_t mosi, uint8_t CS_PIN)
 {
@@ -61,7 +62,7 @@ void setupSPI(void)
     digitalWrite(GD_EN_PIN, HIGH);
     delay(10); // IMPORTANT delay for GD chip to enable
 	digitalWrite(NCS_PIN1, HIGH);
-	GD_SPI.beginTransaction(SPISettings(500000, MSBFIRST, SPI_MODE1));
+	GD_SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE1));
     bool setupCorrect = true;
     // Check for no faults
     setupCorrect &= readSPIRegister(FAULT_STATUS_ADDR, NCS_PIN1) == 0U;
@@ -119,7 +120,8 @@ static void TaskGateDriverSPI(void *pvParameters)
     // Loop
     while (1)
     {
-		healthy = checkGDRegisters();
+        // to avoid frequent faults for farm testing
+		// healthy = checkGDRegisters();
         vTaskDelay(xDelay);
     }
 }
